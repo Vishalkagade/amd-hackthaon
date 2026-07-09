@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+data_raw/
+*.mp3
+flagged/
+.gradio/
+Participant Guide*
+hackathon_conversation.txt

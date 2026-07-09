@@ -1,0 +1,19 @@
+# Core ML — on AMD install the ROCm wheels instead:
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/rocm6.2
+torch
+torchaudio
+
+# App & pipeline
+gradio>=4.44
+faster-whisper>=1.0
+openai>=1.40          # OpenAI-compatible client, pointed at Fireworks
+python-dotenv
+soundfile
+librosa
+numpy
+tqdm
+scikit-learn
+matplotlib
+
+# AI-voice data generation (training only)
+edge-tts
