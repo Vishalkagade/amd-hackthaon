@@ -83,19 +83,11 @@ class VoiceDataset(Dataset):
         return wav, self.labels[i]
 
 
-def build_splits(data_dir: Path, val_frac=0.12):
-    files, labels = [], []
-    for label_idx, name in enumerate(LABELS):
-        for f in sorted((data_dir / name).glob("*.wav")):
-            files.append(str(f))
-            labels.append(label_idx)
-    idx = list(range(len(files)))
-    random.Random(123).shuffle(idx)
-    n_val = int(len(idx) * val_frac)
-    val_idx, train_idx = set(idx[:n_val]), idx[n_val:]
-    tr = VoiceDataset([files[i] for i in train_idx], [labels[i] for i in train_idx], True)
-    va = VoiceDataset([files[i] for i in sorted(val_idx)], [labels[i] for i in sorted(val_idx)], False)
-    return tr, va
+def build_splits(data_dir: Path):
+    """Voice-disjoint split: validation voices/speakers never appear in training."""
+    from .splits import build_disjoint_splits
+    tr_f, tr_y, va_f, va_y = build_disjoint_splits(data_dir)
+    return VoiceDataset(tr_f, tr_y, True), VoiceDataset(va_f, va_y, False)
 
 
 def main():

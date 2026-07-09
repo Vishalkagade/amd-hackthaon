@@ -17,3 +17,6 @@ matplotlib
 
 # AI-voice data generation (training only)
 edge-tts
+
+# Pretrained detector fine-tuning (wav2vec2)
+transformers

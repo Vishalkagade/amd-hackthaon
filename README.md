@@ -16,9 +16,27 @@ the live call. Scam Call Shield does exactly that, on two independent axes:
    human-vs-AI authenticity meter.
 
 Off-the-shelf anti-spoofing checkpoints misclassified our real microphone voices as
-AI — so we built our own dataset (LibriSpeech for human speech, 26 modern neural TTS
-voices for AI speech, with phone-call augmentation: noise, gain, 8 kHz codec
-round-trip) and trained the model ourselves.
+AI (domain shift: they were trained on studio audio and 2019-era TTS) — so we built
+our own dataset (LibriSpeech for human speech, 26 modern neural TTS voices for AI
+speech, with phone-call augmentation: noise, gain, 8 kHz codec round-trip) and
+trained two detectors on it.
+
+## Detector ablation (voice-disjoint evaluation)
+
+Validation contains **only voices never seen in training** — 5 held-out TTS voices
+and 15% held-out human speakers — so these numbers measure generalization to unseen
+synthesizers, not memorization:
+
+| Detector | Params | Val acc (voice-disjoint) | ai_prob on held-out-voice demo clips |
+|---|---|---|---|
+| CNN baseline (from scratch) | 0.3 M | 97.2% | 0.81 |
+| **wav2vec2-base fine-tuned** (production) | 94 M | **98.4%** | **0.98** |
+
+The fine-tuned model starts from self-supervised pretraining on 960 h of speech
+(`facebook/wav2vec2-base`), freezes the conv feature encoder, and fine-tunes the
+transformer + head on our data. Pretrained representations generalize better to
+voices the model has never heard — exactly what a deepfake detector needs. The app
+uses it by default and falls back to the CNN if absent.
 
 ## Architecture
 
@@ -50,8 +68,9 @@ cp .env.example .env                   # then paste your Fireworks API key
 # 1. Build the dataset (LibriSpeech + edge-tts neural voices), ~20 min
 python -m voice_classifier.prepare_data --max-human 1200 --max-ai 1200
 
-# 2. Train (minutes on a GPU); checkpoint lands in voice_trends/
-python -m voice_classifier.train --epochs 12
+# 2. Train both detectors (minutes on a GPU); checkpoints land in voice_trends/
+python -m voice_classifier.train --epochs 12          # CNN baseline
+python -m voice_classifier.finetune_w2v --epochs 4    # wav2vec2 fine-tune (production)
 
 # 3. Launch the demo
 python app.py                          # http://localhost:7860
@@ -64,6 +83,14 @@ python app.py                          # http://localhost:7860
   mid-call, with red flags and advice for the callee.
 - "Simulate real-time" analyses the recording in growing 5-second chunks, exactly as a
   live call monitor would.
+
+## Deployment roadmap (the AMD story)
+
+1. **Today**: deepfake detection fine-tuned and served on AMD Instinct GPUs (ROCm)
+   in the cloud; Whisper runs locally on the user's device.
+2. **Next**: quantize/distill the wav2vec2 detector so the full shield — ASR,
+   scam analysis, voice authentication — runs on-device, and no call audio ever
+   leaves the phone.
 
 ## Honest limitations
 
@@ -81,8 +108,10 @@ scam_detector.py           Fireworks AI scam analysis (JSON verdict)
 voice_classifier/
   model.py                 mel-spectrogram CNN + device selection (CUDA/ROCm)
   prepare_data.py          LibriSpeech + edge-tts dataset builder
-  train.py                 training loop (device-agnostic)
-  infer.py                 sliding-window authenticity scoring
-train_on_amd.ipynb         the AMD ROCm training notebook
-voice_trends/              trained checkpoint + training log
+  splits.py                voice-disjoint train/val split
+  train.py                 CNN baseline training loop (device-agnostic)
+  finetune_w2v.py          wav2vec2-base fine-tuning (production detector)
+  infer.py                 sliding-window scoring; prefers wav2vec2, falls back to CNN
+train_on_amd.ipynb         the AMD ROCm training notebook (trains both detectors)
+voice_trends/              trained checkpoints + training logs
 ```

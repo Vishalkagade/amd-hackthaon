@@ -20,14 +20,14 @@ load_dotenv()
 
 from transcriber import transcribe
 from scam_detector import analyze_transcript
-from voice_classifier.infer import VoiceAuthenticity
+from voice_classifier.infer import load_best_detector
 
 CHUNK_SECONDS = 5.0
 
-voice_model = None
+voice_model, voice_model_name = None, "none"
 try:
-    voice_model = VoiceAuthenticity()
-    print(f"voice model loaded (val_acc={voice_model.val_acc:.3f}, "
+    voice_model, voice_model_name = load_best_detector()
+    print(f"voice model: {voice_model_name} (val_acc={voice_model.val_acc:.3f}, "
           f"trained on {voice_model.trained_on})")
 except Exception as e:
     print(f"WARNING: voice model not loaded ({e}) — train it first.")

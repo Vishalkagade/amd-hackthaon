@@ -9,3 +9,4 @@ flagged/
 .gradio/
 Participant Guide*
 hackathon_conversation.txt
+voice_trends/wav2vec2_finetuned/model.safetensors
