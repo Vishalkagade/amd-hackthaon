@@ -22,11 +22,14 @@ Name, AMD Developer Hackathon ACT II, Track 3.
 - Off-the-shelf anti-spoofing models flagged OUR real voices as AI (trained on old TTS, studio audio).
 - Our dataset: LibriSpeech (human) + 26 modern neural TTS voices (AI)
   + phone-call augmentation (noise, gain, 8 kHz codec round-trip).
-- Then we attacked ourselves: 350 XTTS-v2 voice clones of held-out speakers.
+- Then we attacked ourselves: 470 XTTS-v2 voice clones of held-out speakers +
+  the In-the-Wild dataset (real internet deepfakes of celebrities).
   First result: near-perfect on TTS, only 13–23% on real voice clones!
-- Fix: clone-augmented training + clone-aware checkpoint selection →
-  wav2vec2: 100% TTS / 73% unseen-speaker clones / 8.6% human false positives.
-- Killer ablation: the from-scratch CNN could only "solve" clones by calling 59%
+- Fix: clone+ITW-augmented training, generalization-aware checkpoint selection →
+  wav2vec2: 100% TTS / 84.6% unseen-speaker clones / 98.6% internet deepfakes.
+- Live proof: real Trump speech → 0.008 (human ✅); fake Trump from YouTube →
+  0.791 (caught ✅); XTTS Trump clone → 0.989 (caught ✅).
+- Killer ablation: the from-scratch CNN could only "solve" clones by calling half
   of real humans AI — self-supervised pretraining (wav2vec2) is what learns true
   synthesis artifacts. Also catches Meta MMS-TTS (3rd engine, never seen): p≈0.99.
 

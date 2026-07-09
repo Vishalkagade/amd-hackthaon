@@ -8,9 +8,14 @@ AI clips are named ai_{i:05d}.wav where voice = EDGE_VOICES[i % 26]
 (see prepare_data.py). Human clips are LibriSpeech {speaker}-{chapter}-{utt}.wav.
 """
 
+import csv
+import random
 from pathlib import Path
 
 from .model import LABELS
+
+ROOT = Path(__file__).resolve().parent.parent
+ITW_DIR = ROOT / "data_raw" / "release_in_the_wild"
 
 N_EDGE_VOICES = 26
 # Held-out synthesizer voices (mixed gender/accent): AriaNeural, ChristopherNeural,
@@ -28,6 +33,15 @@ CLONE_VAL_SPEAKERS = {"1988", "652"}
 # Repeat each training clone this many times per epoch (loss-weighting via sampling)
 CLONE_OVERSAMPLE = 4
 
+# In-the-Wild (Frank & Schoenherr): real-world celebrity deepfakes incl. voice
+# conversion + genuine recordings of the same people. Split BY SPEAKER
+# (70/10/20 train/val/test) so evaluation speakers are never trained on.
+ITW_TRAIN_CAP = 4000  # per-label cap so ITW doesn't swamp the other sources
+ITW_VAL_CAP = 600     # checkpoint selection stays fast
+# Demo speakers: force into TEST so they are never trained on and never
+# influence checkpoint selection.
+ITW_FORCE_TEST = {"Donald Trump", "Barack Obama"}
+
 
 def _ai_voice_id(path: Path) -> int:
     return int(path.stem.split("_")[1]) % N_EDGE_VOICES
@@ -39,6 +53,60 @@ def _human_speaker(path: Path) -> str:
 
 def _clone_speaker(path: Path) -> str:
     return path.stem.split("_")[1]  # xtts_{speaker}_{i}.wav
+
+
+def itw_splits():
+    """In-the-Wild -> {'train'|'val'|'test': (files, labels)}, speaker-disjoint.
+
+    meta.csv rows: file,speaker,label with label in {bona-fide, spoof}.
+    Returns empty lists if the dataset is not downloaded.
+    """
+    empty = {k: ([], []) for k in ("train", "val", "test")}
+    meta = ITW_DIR / "meta.csv"
+    if not meta.exists():
+        return empty
+
+    rows = list(csv.DictReader(meta.open()))
+    speakers = sorted({r["speaker"] for r in rows})
+    bucket_of = {}
+    for i, spk in enumerate(speakers):
+        bucket_of[spk] = "train" if i % 10 < 7 else ("val" if i % 10 == 7 else "test")
+    for spk in ITW_FORCE_TEST:
+        bucket_of[spk] = "test"
+
+    ai_label = LABELS.index("ai")
+    human_label = LABELS.index("human")
+    out = {k: ([], []) for k in ("train", "val", "test")}
+    for r in rows:
+        f = ITW_DIR / r["file"]
+        if not f.exists():
+            continue
+        y = ai_label if r["label"].strip() == "spoof" else human_label
+        files, labels = out[bucket_of[r["speaker"]]]
+        files.append(str(f))
+        labels.append(y)
+
+    # Cap training per label so ITW doesn't swamp LibriSpeech/edge-tts/XTTS.
+    files, labels = out["train"]
+    rng = random.Random(2024)
+    by_label = {}
+    for f, y in zip(files, labels):
+        by_label.setdefault(y, []).append(f)
+    capped_f, capped_y = [], []
+    for y, fl in by_label.items():
+        rng.shuffle(fl)
+        fl = fl[:ITW_TRAIN_CAP]
+        capped_f += fl
+        capped_y += [y] * len(fl)
+    out["train"] = (capped_f, capped_y)
+
+    files, labels = out["val"]
+    if len(files) > ITW_VAL_CAP:
+        idx = list(range(len(files)))
+        rng.shuffle(idx)
+        idx = sorted(idx[:ITW_VAL_CAP])
+        out["val"] = ([files[i] for i in idx], [labels[i] for i in idx])
+    return out
 
 
 def clone_splits(data_dir: Path):
@@ -88,6 +156,19 @@ def build_disjoint_splits(data_dir: Path):
     clone_train = clone_train * CLONE_OVERSAMPLE
     tr_f += clone_train
     tr_y += [ai_label] * len(clone_train)
+
+    # In-the-Wild train-speaker portion (real-world deepfakes incl. voice
+    # conversion, and genuine compressed internet audio for the human class).
+    itw_f, itw_y = itw_splits()["train"]
+    tr_f += itw_f
+    tr_y += itw_y
+
+    # XTTS clones made from NOISY internet references (ITW train speakers) —
+    # covers the clone-from-internet-audio attack. Training-only data.
+    itwref = sorted((data_dir / "xtts_clones_itwref").glob("xtts_*.wav"))
+    itwref = [str(f) for f in itwref] * CLONE_OVERSAMPLE
+    tr_f += itwref
+    tr_y += [ai_label] * len(itwref)
 
     return tr_f, tr_y, va_f, va_y
 

@@ -4,42 +4,47 @@
   "rocm": false,
   "torch": "2.13.0+cu130",
   "split": "voice-disjoint (5 held-out TTS voices, 15% held-out speakers) + XTTS clone train/val/test by speaker; selection = mean(val_acc, clone_val_acc)",
-  "best_val_acc": 0.8876490493071221,
+  "best_val_acc": 0.9102084004726608,
   "history": [
     {
       "epoch": 1,
-      "train_loss": 0.539584805116509,
-      "val_acc_voice_disjoint": 0.9672897196261683,
-      "clone_val_acc": 0.6724137931034483,
-      "seconds": 12.0
+      "train_loss": 0.3547288084956972,
+      "val_acc_voice_disjoint": 0.9602803738317757,
+      "clone_val_acc": 0.8103448275862069,
+      "itw_val_acc": 0.96,
+      "seconds": 54.0
     },
     {
       "epoch": 2,
-      "train_loss": 0.13480145608385405,
-      "val_acc_voice_disjoint": 0.9649532710280374,
-      "clone_val_acc": 0.8103448275862069,
-      "seconds": 12.1
+      "train_loss": 0.08077911607143146,
+      "val_acc_voice_disjoint": 0.9415887850467289,
+      "clone_val_acc": 0.7241379310344828,
+      "itw_val_acc": 0.9566666666666667,
+      "seconds": 54.1
     },
     {
       "epoch": 3,
-      "train_loss": 0.06133094803909912,
-      "val_acc_voice_disjoint": 0.9649532710280374,
-      "clone_val_acc": 0.7931034482758621,
-      "seconds": 12.0
+      "train_loss": 0.040279181224112524,
+      "val_acc_voice_disjoint": 0.9836448598130841,
+      "clone_val_acc": 0.5344827586206896,
+      "itw_val_acc": 0.96,
+      "seconds": 54.3
     },
     {
       "epoch": 4,
-      "train_loss": 0.029099740557175017,
-      "val_acc_voice_disjoint": 0.9742990654205608,
-      "clone_val_acc": 0.7068965517241379,
-      "seconds": 11.8
+      "train_loss": 0.0229361565428219,
+      "val_acc_voice_disjoint": 0.9789719626168224,
+      "clone_val_acc": 0.5517241379310345,
+      "itw_val_acc": 0.9583333333333334,
+      "seconds": 54.4
     },
     {
       "epoch": 5,
-      "train_loss": 0.02661486741183608,
-      "val_acc_voice_disjoint": 0.9742990654205608,
-      "clone_val_acc": 0.7241379310344828,
-      "seconds": 12.0
+      "train_loss": 0.016008588197019256,
+      "val_acc_voice_disjoint": 0.9789719626168224,
+      "clone_val_acc": 0.6379310344827587,
+      "itw_val_acc": 0.9583333333333334,
+      "seconds": 54.3
     }
   ]
 }

@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .splits import build_disjoint_splits, clone_splits
+from .splits import build_disjoint_splits, clone_splits, itw_splits
 from .infer import VoiceAuthenticity, W2VAuthenticity, W2V_DIR
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,6 +45,14 @@ def main():
     report = {"n_val_human": len(va_human), "n_val_ai_edge_tts": len(va_ai),
               "n_xtts_clones": len(clones), "threshold": THRESHOLD}
 
+    # Tier 4: In-the-Wild test speakers (real-world internet deepfakes incl.
+    # voice conversion + genuine recordings of the same celebrities).
+    itw_f, itw_y = itw_splits()["test"]
+    itw_fake = [f for f, y in zip(itw_f, itw_y) if y == 1]
+    itw_real = [f for f, y in zip(itw_f, itw_y) if y == 0]
+    report["n_itw_test_fake"] = len(itw_fake)
+    report["n_itw_test_real"] = len(itw_real)
+
     for name, det in detectors.items():
         p_human = score_files(det, va_human)
         p_edge = score_files(det, va_ai)
@@ -58,6 +66,12 @@ def main():
             "human_false_positive_rate": float((p_human > THRESHOLD).mean()),
             "human_mean_ai_prob": float(p_human.mean()),
         }
+        if itw_fake:
+            p_if = score_files(det, itw_fake)
+            p_ir = score_files(det, itw_real)
+            r["tier4_itw_deepfake_detection"] = float((p_if > THRESHOLD).mean())
+            r["tier4_itw_mean_ai_prob"] = float(p_if.mean())
+            r["tier4_itw_human_false_positive_rate"] = float((p_ir > THRESHOLD).mean())
         hard = sorted((ROOT / "hard_samples").glob("*.wav"))
         if hard:
             r["hard_samples"] = {f.name: round(float(det.score_file(str(f))[0]), 3)
@@ -71,6 +85,10 @@ def main():
               f"(mean p={r['tier23_mean_ai_prob']:.3f})")
         print(f"  humans (held-out speakers)     : {r['human_false_positive_rate']:.1%} false positives "
               f"(mean p={r['human_mean_ai_prob']:.3f})")
+        if itw_fake:
+            print(f"  tier 4  In-the-Wild deepfakes  : {r['tier4_itw_deepfake_detection']:.1%} detected "
+                  f"(mean p={r['tier4_itw_mean_ai_prob']:.3f}); "
+                  f"ITW real humans FPR {r['tier4_itw_human_false_positive_rate']:.1%}")
 
     out = ROOT / "voice_trends" / "deepfake_eval.json"
     out.write_text(json.dumps(report, indent=2))

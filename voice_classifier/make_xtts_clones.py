@@ -67,22 +67,49 @@ def load_transcripts():
     return texts
 
 
+def itw_train_refs(max_speakers=30):
+    """Reference wavs from ITW train-bucket speakers (noisy internet audio).
+
+    Cloning from noisy real-world references is the realistic attack; clones
+    made only from clean LibriSpeech references miss that domain.
+    """
+    from .splits import itw_splits, ITW_DIR
+    import csv
+    files, labels = itw_splits()["train"]
+    human = [f for f, y in zip(files, labels) if y == 0]
+    spk_of = {}
+    with (ITW_DIR / "meta.csv").open() as fh:
+        for r in csv.DictReader(fh):
+            spk_of[str(ITW_DIR / r["file"])] = r["speaker"]
+    by_spk = {}
+    for f in human:
+        by_spk.setdefault(spk_of.get(f, "?"), []).append(f)
+    speakers = sorted(by_spk)[:max_speakers]
+    return {s: sorted(by_spk[s]) for s in speakers}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=150)
+    ap.add_argument("--itw-refs", action="store_true",
+                    help="clone ITW train-bucket speakers (noisy refs) instead "
+                         "of held-out LibriSpeech speakers; output goes to "
+                         "data/xtts_clones_itwref (training-only data)")
     args = ap.parse_args()
 
-    OUT.mkdir(parents=True, exist_ok=True)
-    refs_dir = OUT / "_refs"
+    out_dir = (DATA / "xtts_clones_itwref") if args.itw_refs else OUT
+    out_dir.mkdir(parents=True, exist_ok=True)
+    refs_dir = out_dir / "_refs"
     refs_dir.mkdir(exist_ok=True)
 
-    by_speaker = held_out_human_files()
+    by_speaker = itw_train_refs() if args.itw_refs else held_out_human_files()
     speakers = sorted(by_speaker)
-    print(f"{len(speakers)} held-out speakers: {speakers}")
+    print(f"{len(speakers)} reference speakers: {speakers[:8]}...")
 
     refs = {}
     for spk in speakers:
-        ref = refs_dir / f"{spk}.wav"
+        safe = spk.replace(" ", "_").replace("/", "_")
+        ref = refs_dir / f"{safe}.wav"
         if not ref.exists():
             build_reference(by_speaker[spk], ref)
         refs[spk] = str(ref)
@@ -95,11 +122,12 @@ def main():
     print(f"loading XTTS-v2 on {device} ...")
     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
 
-    tmp = OUT / "_tmp.wav"
+    tmp = out_dir / "_tmp.wav"
     made = 0
     for i in tqdm(range(args.n), desc="xtts clones"):
         spk = speakers[i % len(speakers)]
-        out_path = OUT / f"xtts_{spk}_{i:04d}.wav"
+        safe = spk.replace(" ", "_").replace("/", "_")
+        out_path = out_dir / f"xtts_{safe}_{i:04d}.wav"
         if out_path.exists():
             made += 1
             continue
@@ -114,7 +142,7 @@ def main():
             print(f"skip {i}: {e}")
     if tmp.exists():
         tmp.unlink()
-    print(f"DONE  clones={made}  -> {OUT}")
+    print(f"DONE  clones={made}  -> {out_dir}")
 
 
 if __name__ == "__main__":

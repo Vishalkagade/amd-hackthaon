@@ -21,44 +21,56 @@ our own dataset (LibriSpeech for human speech, 26 modern neural TTS voices for A
 speech, with phone-call augmentation: noise, gain, 8 kHz codec round-trip) and
 trained two detectors on it.
 
-## Detector evaluation: three tiers of honesty
+## Detector evaluation: four tiers of honesty
 
 Most deepfake-detector numbers are inflated by evaluation leakage. We evaluate at
-three difficulty tiers, each fully disjoint from training:
+four difficulty tiers, each **speaker- and voice-disjoint** from training:
 
 - **Tier 1 — unseen voice, same engine**: 5 held-out edge-tts voices + 15% held-out
   LibriSpeech speakers.
-- **Tier 2/3 — unseen engine + voice clone of a known speaker**: XTTS-v2 (a cloning
-  engine we never train the val/test speakers on) cloning *held-out LibriSpeech
-  speakers from their own reference audio* — the realistic attack. Test clones are
-  speaker-disjoint from the training clones.
+- **Tier 2/3 — unseen engine + voice clone of a known speaker**: XTTS-v2 cloning
+  held-out LibriSpeech speakers from their own reference audio; test clones are
+  speaker-disjoint from training clones.
+- **Tier 4 — real-world internet deepfakes**: the In-the-Wild dataset (Frank &
+  Schönherr) — deepfakes of celebrities/politicians from the internet (many
+  engines, incl. voice conversion) + genuine recordings of the same people,
+  split by speaker 70/10/20.
 
-| Detector | Tier 1 detection | XTTS-v2 clone detection | Human false positives |
-|---|---|---|---|
-| CNN baseline (0.3 M, from scratch) | 100% | 98.9% ⚠️ | **58.9%** ⚠️ |
-| **wav2vec2-base fine-tuned (94 M, production)** | **100%** | **73.1%** | **8.6%** |
+| wav2vec2-base fine-tuned (production) | Detection | False positives on real humans |
+|---|---|---|
+| Tier 1: unseen edge-tts voices | 100% | 9.6% (LibriSpeech held-out speakers) |
+| Tier 2/3: XTTS-v2 clones, unseen speakers | 84.6% | — |
+| Tier 4: In-the-Wild deepfakes, unseen speakers | **98.6%** | **6.9%** (ITW genuine recordings) |
+
+Hard-sample spot checks (never in any training/val set):
+
+| Clip | ai_prob | Verdict |
+|---|---|---|
+| Real Donald Trump speech (noisy, compressed) | 0.008 | ✅ human |
+| Real Barack Obama speech | 0.014 | ✅ human |
+| Fake Trump downloaded from YouTube (unknown 2026 engine) | 0.791 | ✅ **caught** |
+| XTTS-v2 Trump clone (made from the real clip above) | 0.989 | ✅ caught |
+| Meta MMS-TTS sample (third TTS engine, never seen) | 0.989 | ✅ caught |
 
 The story these numbers tell (found the hard way):
 
-1. Both models trained only on edge-tts scored ~100% on tier 1 but **13–23% on
-   XTTS clones** — engine-disjoint generalization is the real problem, and a
-   detector that has never seen a cloning engine largely misses it.
-2. Adding XTTS clones to training (117 clips of 4 speakers, 4× oversampled) plus
-   checkpoint selection on `mean(tier1_val, clone_val)` fixed it — but only for
-   the pretrained model. The from-scratch CNN could only "solve" clones by
-   flagging LibriSpeech-style channel audio as AI (58.9% false positives on real
-   humans). The wav2vec2 model, starting from 960 h of self-supervised speech
-   pretraining, learned actual synthesis artifacts: 73% clone detection at 8.6%
-   false positives.
-3. Bonus: both models flag a Meta MMS-TTS sample (a third engine, never seen) at
-   p=0.96–0.99.
+1. Trained only on edge-tts, both models scored ~100% on tier 1 but **13–23% on
+   XTTS clones** — engine-disjoint generalization is the real problem.
+2. Adding XTTS clones + In-the-Wild to training, with checkpoint selection on
+   `mean(tier1, clone_val, itw_val)`, fixed it — but only for the pretrained
+   model. The from-scratch CNN baseline could only "solve" clones by flagging
+   everything (46–58% human false positives); wav2vec2's 960 h of
+   self-supervised pretraining is what learns actual synthesis artifacts.
+3. A YouTube fake-Trump clip was still missed (p=0.003) until we added XTTS
+   clones generated from **noisy internet reference audio** — clones from clean
+   references alone don't cover the clone-from-internet-audio attack. After
+   that: p=0.791.
 
 Full numbers: [`voice_trends/deepfake_eval.json`](voice_trends/deepfake_eval.json).
-Reproduce with `python -m voice_classifier.make_xtts_clones` (needs the isolated
-Coqui venv, see below) and `python -m voice_classifier.eval_deepfake`.
-XTTS-v2 weights are CPML-licensed (non-commercial) — used only to generate the
-evaluation/hardening set. The app uses the wav2vec2 detector by default and falls
-back to the CNN if absent.
+Reproduce: `make_xtts_clones.py` (isolated Coqui venv, see Quickstart) →
+`train.py` / `finetune_w2v.py` → `eval_deepfake.py`. XTTS-v2 weights are
+CPML-licensed (non-commercial) — used only for the evaluation/hardening set.
+The app uses the wav2vec2 detector by default and falls back to the CNN if absent.
 
 ## Architecture
 
@@ -124,13 +136,16 @@ python app.py                          # http://localhost:7860
 
 ## Honest limitations
 
-- 73% detection of unseen-speaker XTTS-v2 clones at 8.6% human false positives is a
-  real working point, not a solved problem: the detector raises the cost of an
-  attack rather than guaranteeing detection of every cloning system.
+- These are real working points, not a solved problem: ~85% on unseen-speaker
+  clones and ~99% on 2022-era internet deepfakes, at 7–10% false positives. The
+  detector raises the cost of an attack; brand-new 2026 commercial engines will
+  still land hits until they are added to training — which the pipeline makes a
+  one-command job (`make_xtts_clones.py` pattern for any new engine → retrain →
+  4-tier eval).
 - Real telephone audio (8 kHz, codec-compressed) is approximated via augmentation;
   production deployment would fine-tune on genuine call recordings.
-- Hardening used one cloning engine (XTTS-v2); adding F5-TTS / OpenVoice attack
-  sets is the clear next step and the pipeline makes that a one-command job.
+- In-the-Wild's deepfakes are ~2022-era; continuous retraining against current
+  engines (F5-TTS, OpenVoice, commercial cloning APIs) is the roadmap.
 
 ## Repo layout
 

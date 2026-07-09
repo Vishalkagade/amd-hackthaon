@@ -3,25 +3,39 @@
   "n_val_ai_edge_tts": 231,
   "n_xtts_clones": 175,
   "threshold": 0.5,
+  "n_itw_test_fake": 3393,
+  "n_itw_test_real": 9868,
   "cnn_baseline": {
     "tier1_edge_tts_unseen_voice_detection": 1.0,
-    "tier1_mean_ai_prob": 0.9770795155921473,
-    "tier23_xtts_clone_detection": 0.9885714285714285,
-    "tier23_mean_ai_prob": 0.8838738914075351,
-    "human_false_positive_rate": 0.5888324873096447,
-    "human_mean_ai_prob": 0.5409254321363576,
+    "tier1_mean_ai_prob": 0.992561436321394,
+    "tier23_xtts_clone_detection": 1.0,
+    "tier23_mean_ai_prob": 0.9794959186445288,
+    "human_false_positive_rate": 0.5532994923857868,
+    "human_mean_ai_prob": 0.5475282978192286,
+    "tier4_itw_deepfake_detection": 0.9870321249631594,
+    "tier4_itw_mean_ai_prob": 0.980335811388496,
+    "tier4_itw_human_false_positive_rate": 0.3869071747061208,
     "hard_samples": {
-      "mms_0005.wav": 0.964
+      "Barack Obama.wav": 0.238,
+      "Donald Trump.wav": 0.702,
+      "fake_trump.wav": 0.139,
+      "mms_0005.wav": 0.993
     }
   },
   "wav2vec2_finetuned": {
     "tier1_edge_tts_unseen_voice_detection": 1.0,
-    "tier1_mean_ai_prob": 0.9914034749104594,
-    "tier23_xtts_clone_detection": 0.7314285714285714,
-    "tier23_mean_ai_prob": 0.6900071910174348,
-    "human_false_positive_rate": 0.08629441624365482,
-    "human_mean_ai_prob": 0.11727932662242715,
+    "tier1_mean_ai_prob": 0.9906462108788684,
+    "tier23_xtts_clone_detection": 0.8457142857142858,
+    "tier23_mean_ai_prob": 0.8387537680318338,
+    "human_false_positive_rate": 0.09644670050761421,
+    "human_mean_ai_prob": 0.1162182155713967,
+    "tier4_itw_deepfake_detection": 0.9861479516651931,
+    "tier4_itw_mean_ai_prob": 0.9779665241864534,
+    "tier4_itw_human_false_positive_rate": 0.0694162950952574,
     "hard_samples": {
+      "Barack Obama.wav": 0.014,
+      "Donald Trump.wav": 0.008,
+      "fake_trump.wav": 0.791,
       "mms_0005.wav": 0.989
     }
   }
