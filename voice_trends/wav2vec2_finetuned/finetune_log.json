@@ -3,32 +3,43 @@
   "gpu": "NVIDIA GeForce RTX 4090",
   "rocm": false,
   "torch": "2.13.0+cu130",
-  "split": "voice-disjoint (5 held-out TTS voices, 15% held-out speakers)",
-  "best_val_acc": 0.9836448598130841,
+  "split": "voice-disjoint (5 held-out TTS voices, 15% held-out speakers) + XTTS clone train/val/test by speaker; selection = mean(val_acc, clone_val_acc)",
+  "best_val_acc": 0.8876490493071221,
   "history": [
     {
       "epoch": 1,
-      "train_loss": 0.5266375149627334,
-      "val_acc_voice_disjoint": 0.9626168224299065,
-      "seconds": 9.2
+      "train_loss": 0.539584805116509,
+      "val_acc_voice_disjoint": 0.9672897196261683,
+      "clone_val_acc": 0.6724137931034483,
+      "seconds": 12.0
     },
     {
       "epoch": 2,
-      "train_loss": 0.14224348405321824,
-      "val_acc_voice_disjoint": 0.9836448598130841,
-      "seconds": 9.3
+      "train_loss": 0.13480145608385405,
+      "val_acc_voice_disjoint": 0.9649532710280374,
+      "clone_val_acc": 0.8103448275862069,
+      "seconds": 12.1
     },
     {
       "epoch": 3,
-      "train_loss": 0.05881563700663233,
-      "val_acc_voice_disjoint": 0.9813084112149533,
-      "seconds": 9.2
+      "train_loss": 0.06133094803909912,
+      "val_acc_voice_disjoint": 0.9649532710280374,
+      "clone_val_acc": 0.7931034482758621,
+      "seconds": 12.0
     },
     {
       "epoch": 4,
-      "train_loss": 0.0326106136447741,
-      "val_acc_voice_disjoint": 0.9813084112149533,
-      "seconds": 9.4
+      "train_loss": 0.029099740557175017,
+      "val_acc_voice_disjoint": 0.9742990654205608,
+      "clone_val_acc": 0.7068965517241379,
+      "seconds": 11.8
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.02661486741183608,
+      "val_acc_voice_disjoint": 0.9742990654205608,
+      "clone_val_acc": 0.7241379310344828,
+      "seconds": 12.0
     }
   ]
 }

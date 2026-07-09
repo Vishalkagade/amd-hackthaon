@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 from transformers import AutoModelForAudioClassification
 
 from .model import pick_device, LABELS
-from .splits import build_disjoint_splits
+from .splits import build_disjoint_splits, clone_splits
 from .train import VoiceDataset
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,6 +69,15 @@ def main():
     dl_va = DataLoader(VoiceDataset(va_f, va_y, False), batch_size=args.batch_size,
                        num_workers=args.workers)
 
+    # Clone-val (unseen-speaker XTTS clones): included in checkpoint selection
+    # so the model that best generalizes to the clone engine is the one saved.
+    _, clone_val, _ = clone_splits(Path(args.data))
+    dl_cv = None
+    if clone_val:
+        cv = VoiceDataset(clone_val, [LABELS.index("ai")] * len(clone_val), False)
+        dl_cv = DataLoader(cv, batch_size=args.batch_size, num_workers=args.workers)
+        print(f"clone-val={len(cv)}")
+
     model = AutoModelForAudioClassification.from_pretrained(
         BASE_MODEL,
         num_labels=len(LABELS),
@@ -106,14 +115,18 @@ def main():
             n += len(y)
 
         acc = evaluate(model, dl_va, device)
+        cv_acc = evaluate(model, dl_cv, device) if dl_cv else None
+        select = acc if cv_acc is None else (acc + cv_acc) / 2
         history.append({"epoch": epoch, "train_loss": tr_loss / n,
                         "val_acc_voice_disjoint": acc,
+                        "clone_val_acc": cv_acc,
                         "seconds": round(time.time() - t0, 1)})
         print(f"epoch {epoch}  loss {tr_loss/n:.4f}  val_acc {acc:.4f}  "
+              f"clone_val {cv_acc if cv_acc is not None else float('nan'):.4f}  "
               f"({history[-1]['seconds']}s)")
 
-        if acc > best_acc:
-            best_acc = acc
+        if select > best_acc:
+            best_acc = select
             model.save_pretrained(out_dir)
 
     (out_dir / "finetune_log.json").write_text(json.dumps({
@@ -121,7 +134,9 @@ def main():
         "gpu": gpu_name,
         "rocm": is_rocm,
         "torch": torch.__version__,
-        "split": "voice-disjoint (5 held-out TTS voices, 15% held-out speakers)",
+        "split": ("voice-disjoint (5 held-out TTS voices, 15% held-out speakers) "
+                  "+ XTTS clone train/val/test by speaker; selection = "
+                  "mean(val_acc, clone_val_acc)"),
         "best_val_acc": best_acc,
         "history": history,
     }, indent=2))

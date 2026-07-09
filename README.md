@@ -21,22 +21,44 @@ our own dataset (LibriSpeech for human speech, 26 modern neural TTS voices for A
 speech, with phone-call augmentation: noise, gain, 8 kHz codec round-trip) and
 trained two detectors on it.
 
-## Detector ablation (voice-disjoint evaluation)
+## Detector evaluation: three tiers of honesty
 
-Validation contains **only voices never seen in training** — 5 held-out TTS voices
-and 15% held-out human speakers — so these numbers measure generalization to unseen
-synthesizers, not memorization:
+Most deepfake-detector numbers are inflated by evaluation leakage. We evaluate at
+three difficulty tiers, each fully disjoint from training:
 
-| Detector | Params | Val acc (voice-disjoint) | ai_prob on held-out-voice demo clips |
+- **Tier 1 — unseen voice, same engine**: 5 held-out edge-tts voices + 15% held-out
+  LibriSpeech speakers.
+- **Tier 2/3 — unseen engine + voice clone of a known speaker**: XTTS-v2 (a cloning
+  engine we never train the val/test speakers on) cloning *held-out LibriSpeech
+  speakers from their own reference audio* — the realistic attack. Test clones are
+  speaker-disjoint from the training clones.
+
+| Detector | Tier 1 detection | XTTS-v2 clone detection | Human false positives |
 |---|---|---|---|
-| CNN baseline (from scratch) | 0.3 M | 97.2% | 0.81 |
-| **wav2vec2-base fine-tuned** (production) | 94 M | **98.4%** | **0.98** |
+| CNN baseline (0.3 M, from scratch) | 100% | 98.9% ⚠️ | **58.9%** ⚠️ |
+| **wav2vec2-base fine-tuned (94 M, production)** | **100%** | **73.1%** | **8.6%** |
 
-The fine-tuned model starts from self-supervised pretraining on 960 h of speech
-(`facebook/wav2vec2-base`), freezes the conv feature encoder, and fine-tunes the
-transformer + head on our data. Pretrained representations generalize better to
-voices the model has never heard — exactly what a deepfake detector needs. The app
-uses it by default and falls back to the CNN if absent.
+The story these numbers tell (found the hard way):
+
+1. Both models trained only on edge-tts scored ~100% on tier 1 but **13–23% on
+   XTTS clones** — engine-disjoint generalization is the real problem, and a
+   detector that has never seen a cloning engine largely misses it.
+2. Adding XTTS clones to training (117 clips of 4 speakers, 4× oversampled) plus
+   checkpoint selection on `mean(tier1_val, clone_val)` fixed it — but only for
+   the pretrained model. The from-scratch CNN could only "solve" clones by
+   flagging LibriSpeech-style channel audio as AI (58.9% false positives on real
+   humans). The wav2vec2 model, starting from 960 h of self-supervised speech
+   pretraining, learned actual synthesis artifacts: 73% clone detection at 8.6%
+   false positives.
+3. Bonus: both models flag a Meta MMS-TTS sample (a third engine, never seen) at
+   p=0.96–0.99.
+
+Full numbers: [`voice_trends/deepfake_eval.json`](voice_trends/deepfake_eval.json).
+Reproduce with `python -m voice_classifier.make_xtts_clones` (needs the isolated
+Coqui venv, see below) and `python -m voice_classifier.eval_deepfake`.
+XTTS-v2 weights are CPML-licensed (non-commercial) — used only to generate the
+evaluation/hardening set. The app uses the wav2vec2 detector by default and falls
+back to the CNN if absent.
 
 ## Architecture
 
@@ -68,11 +90,19 @@ cp .env.example .env                   # then paste your Fireworks API key
 # 1. Build the dataset (LibriSpeech + edge-tts neural voices), ~20 min
 python -m voice_classifier.prepare_data --max-human 1200 --max-ai 1200
 
-# 2. Train both detectors (minutes on a GPU); checkpoints land in voice_trends/
-python -m voice_classifier.train --epochs 12          # CNN baseline
-python -m voice_classifier.finetune_w2v --epochs 4    # wav2vec2 fine-tune (production)
+# 2. (optional but recommended) Build the XTTS-v2 clone attack set.
+#    Coqui TTS needs its own venv (it pins transformers 4.x / torch 2.8):
+python3 -m venv .venv-tts && .venv-tts/bin/pip install "coqui-tts[codec]" "transformers<5" "torch==2.8.*" "torchaudio==2.8.*" librosa soundfile tqdm
+COQUI_TOS_AGREED=1 .venv-tts/bin/python -m voice_classifier.make_xtts_clones --n 350
 
-# 3. Launch the demo
+# 3. Train both detectors (minutes on a GPU); checkpoints land in voice_trends/
+python -m voice_classifier.train --epochs 14          # CNN baseline
+python -m voice_classifier.finetune_w2v --epochs 5    # wav2vec2 fine-tune (production)
+
+# 4. Evaluate the three-tier honesty table
+python -m voice_classifier.eval_deepfake
+
+# 5. Launch the demo
 python app.py                          # http://localhost:7860
 ```
 
@@ -94,10 +124,13 @@ python app.py                          # http://localhost:7860
 
 ## Honest limitations
 
-- The voice classifier is trained against 2026-era neural TTS voices; it raises the
-  cost of an attack rather than guaranteeing detection of every future cloning system.
+- 73% detection of unseen-speaker XTTS-v2 clones at 8.6% human false positives is a
+  real working point, not a solved problem: the detector raises the cost of an
+  attack rather than guaranteeing detection of every cloning system.
 - Real telephone audio (8 kHz, codec-compressed) is approximated via augmentation;
   production deployment would fine-tune on genuine call recordings.
+- Hardening used one cloning engine (XTTS-v2); adding F5-TTS / OpenVoice attack
+  sets is the clear next step and the pipeline makes that a one-command job.
 
 ## Repo layout
 
@@ -108,9 +141,11 @@ scam_detector.py           Fireworks AI scam analysis (JSON verdict)
 voice_classifier/
   model.py                 mel-spectrogram CNN + device selection (CUDA/ROCm)
   prepare_data.py          LibriSpeech + edge-tts dataset builder
-  splits.py                voice-disjoint train/val split
+  splits.py                voice-disjoint split + 3-way XTTS clone split
   train.py                 CNN baseline training loop (device-agnostic)
   finetune_w2v.py          wav2vec2-base fine-tuning (production detector)
+  make_xtts_clones.py      XTTS-v2 voice-clone attack set (runs in .venv-tts)
+  eval_deepfake.py         three-tier evaluation (edge-tts / XTTS clones / humans)
   infer.py                 sliding-window scoring; prefers wav2vec2, falls back to CNN
 train_on_amd.ipynb         the AMD ROCm training notebook (trains both detectors)
 voice_trends/              trained checkpoints + training logs

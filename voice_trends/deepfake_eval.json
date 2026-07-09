@@ -1,0 +1,28 @@
+{
+  "n_val_human": 197,
+  "n_val_ai_edge_tts": 231,
+  "n_xtts_clones": 175,
+  "threshold": 0.5,
+  "cnn_baseline": {
+    "tier1_edge_tts_unseen_voice_detection": 1.0,
+    "tier1_mean_ai_prob": 0.9770795155921473,
+    "tier23_xtts_clone_detection": 0.9885714285714285,
+    "tier23_mean_ai_prob": 0.8838738914075351,
+    "human_false_positive_rate": 0.5888324873096447,
+    "human_mean_ai_prob": 0.5409254321363576,
+    "hard_samples": {
+      "mms_0005.wav": 0.964
+    }
+  },
+  "wav2vec2_finetuned": {
+    "tier1_edge_tts_unseen_voice_detection": 1.0,
+    "tier1_mean_ai_prob": 0.9914034749104594,
+    "tier23_xtts_clone_detection": 0.7314285714285714,
+    "tier23_mean_ai_prob": 0.6900071910174348,
+    "human_false_positive_rate": 0.08629441624365482,
+    "human_mean_ai_prob": 0.11727932662242715,
+    "hard_samples": {
+      "mms_0005.wav": 0.989
+    }
+  }
+}

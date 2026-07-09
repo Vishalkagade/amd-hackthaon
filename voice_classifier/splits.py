@@ -19,6 +19,15 @@ HELDOUT_VOICE_IDS = {2, 7, 12, 18, 24}
 # Fraction of human speakers held out
 HELDOUT_SPEAKER_FRAC = 0.15
 
+# XTTS-v2 clone split (engine-disjoint hardening), 3-way by speaker:
+#   train speakers  -> clones added to training (oversampled)
+#   val speakers    -> used ONLY for checkpoint selection (never trained on)
+#   test speakers   -> tier-2/3 evaluation, never seen anywhere
+CLONE_TEST_SPEAKERS = {"1320", "2094", "3000", "4446", "61", "7176"}
+CLONE_VAL_SPEAKERS = {"1988", "652"}
+# Repeat each training clone this many times per epoch (loss-weighting via sampling)
+CLONE_OVERSAMPLE = 4
+
 
 def _ai_voice_id(path: Path) -> int:
     return int(path.stem.split("_")[1]) % N_EDGE_VOICES
@@ -26,6 +35,25 @@ def _ai_voice_id(path: Path) -> int:
 
 def _human_speaker(path: Path) -> str:
     return path.stem.split("-")[0]
+
+
+def _clone_speaker(path: Path) -> str:
+    return path.stem.split("_")[1]  # xtts_{speaker}_{i}.wav
+
+
+def clone_splits(data_dir: Path):
+    """Split XTTS clones by speaker into (train, val, test) file lists."""
+    clones = sorted((Path(data_dir) / "xtts_clones").glob("xtts_*.wav"))
+    train, val, test = [], [], []
+    for f in clones:
+        spk = _clone_speaker(f)
+        if spk in CLONE_TEST_SPEAKERS:
+            test.append(str(f))
+        elif spk in CLONE_VAL_SPEAKERS:
+            val.append(str(f))
+        else:
+            train.append(str(f))
+    return train, val, test
 
 
 def build_disjoint_splits(data_dir: Path):
@@ -51,6 +79,15 @@ def build_disjoint_splits(data_dir: Path):
             va_f.append(str(f)); va_y.append(human_label)
         else:
             tr_f.append(str(f)); tr_y.append(human_label)
+
+    # Engine-disjoint hardening: add the train-speaker XTTS clones to training
+    # (val stays pure edge-tts, so tier-1 numbers remain comparable).
+    # Oversampled: a few hundred clone clips vs ~700 edge-tts clips would be
+    # swamped in the loss otherwise.
+    clone_train, _, _ = clone_splits(data_dir)
+    clone_train = clone_train * CLONE_OVERSAMPLE
+    tr_f += clone_train
+    tr_y += [ai_label] * len(clone_train)
 
     return tr_f, tr_y, va_f, va_y
 

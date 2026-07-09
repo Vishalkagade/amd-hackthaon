@@ -110,6 +110,16 @@ def main():
                        num_workers=args.workers, drop_last=True)
     dl_va = DataLoader(va, batch_size=args.batch_size, num_workers=args.workers)
 
+    # Clone-val (unseen-speaker XTTS clones, never trained on): part of the
+    # checkpoint-selection metric so clone learning isn't discarded.
+    from .splits import clone_splits
+    _, clone_val, _ = clone_splits(Path(args.data))
+    dl_cv = None
+    if clone_val:
+        cv = VoiceDataset(clone_val, [LABELS.index("ai")] * len(clone_val), False)
+        dl_cv = DataLoader(cv, batch_size=args.batch_size, num_workers=args.workers)
+        print(f"clone-val={len(cv)}")
+
     model = VoiceCNN().to(device)
     melspec = make_melspec().to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
@@ -137,21 +147,29 @@ def main():
         sched.step()
 
         model.eval()
-        correct, total = 0, 0
-        with torch.no_grad():
-            for wav, y in dl_va:
-                wav, y = wav.to(device), y.to(device)
-                x = melspec(wav).unsqueeze(1)
-                correct += (model(x).argmax(1) == y).sum().item()
-                total += len(y)
-        acc = correct / max(total, 1)
+
+        def loader_acc(loader):
+            correct, total = 0, 0
+            with torch.no_grad():
+                for wav, y in loader:
+                    wav, y = wav.to(device), y.to(device)
+                    x = melspec(wav).unsqueeze(1)
+                    correct += (model(x).argmax(1) == y).sum().item()
+                    total += len(y)
+            return correct / max(total, 1)
+
+        acc = loader_acc(dl_va)
+        cv_acc = loader_acc(dl_cv) if dl_cv else None
+        select = acc if cv_acc is None else (acc + cv_acc) / 2
         history.append({"epoch": epoch, "train_loss": tr_loss / n, "val_acc": acc,
+                        "clone_val_acc": cv_acc,
                         "seconds": round(time.time() - t0, 1)})
         print(f"epoch {epoch:2d}  loss {tr_loss/n:.4f}  val_acc {acc:.4f}  "
+              f"clone_val {cv_acc if cv_acc is not None else float('nan'):.4f}  "
               f"({history[-1]['seconds']}s)")
 
-        if acc > best_acc:
-            best_acc = acc
+        if select > best_acc:
+            best_acc = select
             torch.save({
                 "state_dict": model.state_dict(),
                 "labels": LABELS,
