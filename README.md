@@ -11,15 +11,35 @@ the live call. Scam Call Shield does exactly that, on two independent axes:
 1. **What is being said** — local Whisper transcribes the call on-GPU; an open LLM
    served by **Fireworks AI** scores scam patterns in real time (urgency, bank
    impersonation, gift cards, code requests…) and gives the callee plain-language advice.
-2. **Who is speaking** — our **own CNN classifier, trained on an AMD GPU**, scores
-   every 3-second window for synthetic-voice artefacts and shows a live
+2. **Who is speaking** — a **wav2vec2 detector fine-tuned on an AMD GPU via ROCm**
+   scores every 3-second window for synthetic-voice artefacts and shows a live
    human-vs-AI authenticity meter.
 
-Off-the-shelf anti-spoofing checkpoints misclassified our real microphone voices as
-AI (domain shift: they were trained on studio audio and 2019-era TTS) — so we built
-our own dataset (LibriSpeech for human speech, 26 modern neural TTS voices for AI
-speech, with phone-call augmentation: noise, gain, 8 kHz codec round-trip) and
-trained two detectors on it.
+Off-the-shelf anti-spoofing checkpoints misclassified real microphone voices as
+AI (domain shift: they were trained on studio audio and 2019-era TTS) — so this
+project builds its own dataset (LibriSpeech + 26 modern neural TTS voices +
+XTTS-v2 voice clones + the In-the-Wild deepfake corpus, with phone-call
+augmentation) and trains its own detectors on it.
+
+## AMD compute usage
+
+The production detector is trained **and** evaluated on AMD hardware through ROCm
+PyTorch. Machine-checkable evidence is committed in
+[`voice_trends/`](voice_trends/) — the training script records the accelerator it
+ran on into its log:
+
+```json
+"gpu":  "AMD GPU (gfx1100)",     // AMD Radeon PRO W7900, 51.5 GB
+"rocm": true,
+"hip":  "7.2.53211-e1a6bc5663",
+"torch":"2.9.1+gitff65f5b"
+```
+
+Reproduce with [`train_on_amd.ipynb`](train_on_amd.ipynb). No code changes are
+needed between vendors: ROCm PyTorch exposes AMD GPUs through the standard
+`torch.cuda` API, so the same `train.py` / `finetune_w2v.py` run unmodified on
+either stack. The scam-analysis LLM is served by Fireworks AI, which also runs on
+AMD accelerators — so both axes of the product sit on AMD silicon.
 
 ## Detector evaluation: four tiers of honesty
 
@@ -90,19 +110,9 @@ The app uses the wav2vec2 detector by default and falls back to the CNN if absen
 ```
                  ┌─ faster-whisper (local GPU) ─→ transcript ─→ Fireworks AI LLM ─→ scam risk + red flags + advice
 call audio ──────┤
- (5 s chunks)    └─ Mel-spectrogram CNN (trained on AMD ROCm) ─→ AI-voice probability meter
+ (5 s chunks)    └─ wav2vec2 detector (fine-tuned on AMD ROCm) ─→ AI-voice probability meter
+                    scored over overlapping 3 s windows
 ```
-
-## AMD compute usage (qualification evidence)
-
-- The voice classifier is trained on an **AMD Instinct GPU via ROCm PyTorch** —
-  see [`train_on_amd.ipynb`](train_on_amd.ipynb).
-- The training log [`voice_trends/training_log.json`](voice_trends/training_log.json)
-  records the GPU device name, torch/ROCm version, and per-epoch metrics from the run.
-- The code is device-agnostic: ROCm PyTorch exposes AMD GPUs through the standard
-  `torch.cuda` API, so `voice_classifier/train.py` runs unmodified on both stacks.
-- Fireworks AI serves its open models on AMD accelerators, so the LLM axis also
-  runs on AMD silicon.
 
 ## Quickstart
 
@@ -115,19 +125,27 @@ cp .env.example .env                   # then paste your Fireworks API key
 # 1. Build the dataset (LibriSpeech + edge-tts neural voices), ~20 min
 python -m voice_classifier.prepare_data --max-human 1200 --max-ai 1200
 
-# 2. (optional but recommended) Build the XTTS-v2 clone attack set.
+# 2. Build the XTTS-v2 clone attack set (the engine-disjoint hardening data).
 #    Coqui TTS needs its own venv (it pins transformers 4.x / torch 2.8):
 python3 -m venv .venv-tts && .venv-tts/bin/pip install "coqui-tts[codec]" "transformers<5" "torch==2.8.*" "torchaudio==2.8.*" librosa soundfile tqdm
 COQUI_TOS_AGREED=1 .venv-tts/bin/python -m voice_classifier.make_xtts_clones --n 350
+COQUI_TOS_AGREED=1 .venv-tts/bin/python -m voice_classifier.make_xtts_clones --itw-refs --n 120
 
-# 3. Train both detectors (minutes on a GPU); checkpoints land in voice_trends/
+# 3. (optional) In-the-Wild corpus — real internet deepfakes, for tier-4 eval:
+#    https://owncloud.fraunhofer.de/index.php/s/JZgXh0JEAF0elxa  -> data_raw/release_in_the_wild/
+
+# 4. Enroll the device owner's voice — put your own recordings in hard_samples/
+#    first. This is what stops the detector from flagging YOU as AI.
+python -m voice_classifier.enroll
+
+# 5. Train both detectors (minutes on a GPU); checkpoints land in voice_trends/
 python -m voice_classifier.train --epochs 14          # CNN baseline
 python -m voice_classifier.finetune_w2v --epochs 5    # wav2vec2 fine-tune (production)
 
-# 4. Evaluate the three-tier honesty table
+# 6. Reproduce the four-tier evaluation table
 python -m voice_classifier.eval_deepfake
 
-# 5. Launch the demo
+# 7. Launch the demo
 python app.py                          # http://localhost:7860
 ```
 
@@ -141,7 +159,7 @@ python app.py                          # http://localhost:7860
 
 ## Deployment roadmap (the AMD story)
 
-1. **Today**: deepfake detection fine-tuned and served on AMD Instinct GPUs (ROCm)
+1. **Today**: deepfake detection fine-tuned and served on AMD GPUs (ROCm)
    in the cloud; Whisper runs locally on the user's device.
 2. **Next**: quantize/distill the wav2vec2 detector so the full shield — ASR,
    scam analysis, voice authentication — runs on-device, and no call audio ever
@@ -180,8 +198,15 @@ voice_classifier/
   train.py                 CNN baseline training loop (device-agnostic)
   finetune_w2v.py          wav2vec2-base fine-tuning (production detector)
   make_xtts_clones.py      XTTS-v2 voice-clone attack set (runs in .venv-tts)
-  eval_deepfake.py         three-tier evaluation (edge-tts / XTTS clones / humans)
+  eval_deepfake.py         four-tier evaluation (edge-tts / clones / In-the-Wild / humans)
+  pack_itw_subset.py       compact In-the-Wild bundle for uploading to a cloud GPU
   infer.py                 sliding-window scoring; prefers wav2vec2, falls back to CNN
-train_on_amd.ipynb         the AMD ROCm training notebook (trains both detectors)
-voice_trends/              trained checkpoints + training logs
+train_on_amd.ipynb         the AMD ROCm training notebook (trains + evaluates both detectors)
+voice_trends/              trained checkpoints, training logs (incl. AMD run), eval results
+hard_samples/              hard test clips never used in training (real + fake public figures)
 ```
+
+Note: the owner's own voice recordings and the scam-script clones of that voice are
+deliberately **not** committed — publishing voice biometrics would hand an attacker
+the exact material needed to clone the owner. Enrollment data is user-supplied; see
+`enroll.py`.
