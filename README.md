@@ -8,8 +8,8 @@ anyone's voice, and AI voice scams surged over 1,200% in 2025 (FBI: $3B+ in loss
 The human ear has lost this arms race — detection has to move to the device, onto
 the live call. Scam Call Shield does exactly that, on two independent axes:
 
-1. **What is being said** — local Whisper transcribes the call on-GPU; an open LLM
-   served by **Fireworks AI** scores scam patterns in real time (urgency, bank
+1. **What is being said** — local Whisper transcribes the call on-GPU; **Gemma 3 12B
+   served by Fireworks AI** scores scam patterns in real time (urgency, bank
    impersonation, gift cards, code requests…) and gives the callee plain-language advice.
 2. **Who is speaking** — a **wav2vec2 detector fine-tuned on an AMD GPU via ROCm**
    scores every 3-second window for synthetic-voice artefacts and shows a live
@@ -38,8 +38,13 @@ ran on into its log:
 Reproduce with [`train_on_amd.ipynb`](train_on_amd.ipynb). No code changes are
 needed between vendors: ROCm PyTorch exposes AMD GPUs through the standard
 `torch.cuda` API, so the same `train.py` / `finetune_w2v.py` run unmodified on
-either stack. The scam-analysis LLM is served by Fireworks AI, which also runs on
-AMD accelerators — so both axes of the product sit on AMD silicon.
+either stack.
+
+The scam-analysis LLM is **Gemma 3 12B Instruct, deployed on Fireworks AI** (which
+serves open models on AMD accelerators) — so both axes of the product sit on AMD
+silicon. The app displays the active model and the GPU its detector was trained on
+directly in the UI. `FIREWORKS_MODEL` in `.env` selects the deployment; the demo
+falls back to a serverless model when the dedicated Gemma deployment is torn down.
 
 ## Detector evaluation: four tiers of honesty
 
