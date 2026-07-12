@@ -36,13 +36,17 @@ def main():
     # Only clones of speakers the models never trained on (speaker-disjoint
     # within the clone engine too).
     _, _, clones = clone_splits(DATA)
-    assert clones, "run make_xtts_clones.py first"
+    if not clones:
+        print("note: no XTTS clones present — skipping tiers 2/3 "
+              "(run make_xtts_clones.py to include them)")
 
     detectors = {"cnn_baseline": VoiceAuthenticity()}
     if (W2V_DIR / "model.safetensors").exists():
         detectors["wav2vec2_finetuned"] = W2VAuthenticity()
 
-    report = {"n_val_human": len(va_human), "n_val_ai_edge_tts": len(va_ai),
+    from .model import device_info
+    report = {"device": device_info(),   # records the GPU the eval ran on
+              "n_val_human": len(va_human), "n_val_ai_edge_tts": len(va_ai),
               "n_xtts_clones": len(clones), "threshold": THRESHOLD}
 
     # Tier 4: In-the-Wild test speakers (real-world internet deepfakes incl.
@@ -56,16 +60,17 @@ def main():
     for name, det in detectors.items():
         p_human = score_files(det, va_human)
         p_edge = score_files(det, va_ai)
-        p_xtts = score_files(det, clones)
 
         r = {
             "tier1_edge_tts_unseen_voice_detection": float((p_edge > THRESHOLD).mean()),
             "tier1_mean_ai_prob": float(p_edge.mean()),
-            "tier23_xtts_clone_detection": float((p_xtts > THRESHOLD).mean()),
-            "tier23_mean_ai_prob": float(p_xtts.mean()),
             "human_false_positive_rate": float((p_human > THRESHOLD).mean()),
             "human_mean_ai_prob": float(p_human.mean()),
         }
+        if clones:
+            p_xtts = score_files(det, clones)
+            r["tier23_xtts_clone_detection"] = float((p_xtts > THRESHOLD).mean())
+            r["tier23_mean_ai_prob"] = float(p_xtts.mean())
         if itw_fake:
             p_if = score_files(det, itw_fake)
             p_ir = score_files(det, itw_real)
@@ -81,8 +86,9 @@ def main():
         print(f"\n=== {name} ===")
         print(f"  tier 1  edge-tts unseen voices : {r['tier1_edge_tts_unseen_voice_detection']:.1%} detected "
               f"(mean p={r['tier1_mean_ai_prob']:.3f})")
-        print(f"  tier2+3 XTTS-v2 speaker clones : {r['tier23_xtts_clone_detection']:.1%} detected "
-              f"(mean p={r['tier23_mean_ai_prob']:.3f})")
+        if clones:
+            print(f"  tier2+3 XTTS-v2 speaker clones : {r['tier23_xtts_clone_detection']:.1%} detected "
+                  f"(mean p={r['tier23_mean_ai_prob']:.3f})")
         print(f"  humans (held-out speakers)     : {r['human_false_positive_rate']:.1%} false positives "
               f"(mean p={r['human_mean_ai_prob']:.3f})")
         if itw_fake:
