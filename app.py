@@ -167,4 +167,6 @@ risk → **our wav2vec2 detector (trained on AMD ROCm)** flags synthetic voices.
               [transcript_out, scam_out, voice_out, status])
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    # SHARE=1 publishes a public *.gradio.live URL (expires after 72 h).
+    demo.launch(server_name="0.0.0.0", server_port=7860,
+                share=os.environ.get("SHARE") == "1")
