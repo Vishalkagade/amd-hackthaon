@@ -19,18 +19,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from transcriber import transcribe
-from scam_detector import analyze_transcript
+from scam_detector import analyze_transcript, model_label
 from voice_classifier.infer import load_best_detector
 
 CHUNK_SECONDS = 5.0
 
 voice_model, voice_model_name = None, "none"
+voice_model_gpu = "unknown"
 try:
     voice_model, voice_model_name = load_best_detector()
+    voice_model_gpu = voice_model.trained_on
     print(f"voice model: {voice_model_name} (val_acc={voice_model.val_acc:.3f}, "
-          f"trained on {voice_model.trained_on})")
+          f"trained on {voice_model_gpu})")
 except Exception as e:
     print(f"WARNING: voice model not loaded ({e}) — train it first.")
+
+LLM_NAME = model_label()
+print(f"scam LLM: {LLM_NAME} (Fireworks AI)")
 
 
 def meter_html(title, value, label, color):
@@ -125,8 +130,26 @@ with gr.Blocks(title="Scam Call Shield", theme=gr.themes.Soft()) as demo:
     gr.Markdown(
         """# 🛡️ Scam Call Shield
 Real-time protection against phone scams and AI voice clones.
-**Whisper (local GPU)** transcribes the call → **Fireworks AI open LLM** scores scam
-risk → **our own CNN (trained on AMD GPU)** detects synthetic voices."""
+**Whisper (local GPU)** transcribes the call → **Gemma on Fireworks AI** scores scam
+risk → **our wav2vec2 detector (trained on AMD ROCm)** flags synthetic voices."""
+    )
+    # Inline colours on every element: Gradio's dark theme otherwise overrides
+    # the nested <b> and it disappears into the badge background.
+    gr.HTML(
+        f"""<div style="display:flex;gap:10px;flex-wrap:wrap;font-family:sans-serif;
+                    font-size:13px;margin:-4px 0 8px">
+          <span style="background:#fef3c7;border:1px solid #f59e0b;color:#7c2d12 !important;
+                       padding:5px 12px;border-radius:99px">
+            🔥 Scam analysis —
+            <b style="color:#7c2d12 !important;font-weight:700">{LLM_NAME}</b>
+            <span style="color:#7c2d12 !important">on Fireworks AI</span></span>
+          <span style="background:#dcfce7;border:1px solid #22c55e;color:#14532d !important;
+                       padding:5px 12px;border-radius:99px">
+            🎙️ Voice detector —
+            <b style="color:#14532d !important;font-weight:700">{voice_model_name}</b>
+            <span style="color:#14532d !important">, trained on</span>
+            <b style="color:#14532d !important;font-weight:700">{voice_model_gpu}</b></span>
+        </div>"""
     )
     with gr.Row():
         with gr.Column(scale=1):

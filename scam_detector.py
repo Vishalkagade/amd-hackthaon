@@ -36,6 +36,15 @@ def get_client():
     )
 
 
+def model_label() -> str:
+    """Human-readable name of the LLM answering, for the UI badge."""
+    model = os.environ.get("FIREWORKS_MODEL", "")
+    name = model.rsplit("/", 1)[-1] if model else "unknown"
+    if "deployments/" in model:
+        name = os.environ.get("FIREWORKS_MODEL_NAME", f"dedicated ({name})")
+    return name
+
+
 def analyze_transcript(transcript: str) -> dict:
     if not transcript.strip():
         return {"risk_score": 0, "verdict": "safe", "red_flags": [],
