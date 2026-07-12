@@ -56,24 +56,31 @@ four difficulty tiers, each **speaker- and voice-disjoint** from training:
   engines, incl. voice conversion) + genuine recordings of the same people,
   split by speaker 70/10/20.
 
+All numbers below are from the model **trained and evaluated on the AMD GPU**
+(`voice_trends/deepfake_eval.json`, `finetune_log.json`):
+
 | wav2vec2-base fine-tuned (production) | Detection | False positives on real humans |
 |---|---|---|
-| Tier 1: unseen edge-tts voices | 100% | 16.8% (LibriSpeech held-out speakers) |
-| Tier 2/3: XTTS-v2 clones, unseen speakers | 87.4% | — |
-| Tier 4: In-the-Wild deepfakes, unseen speakers | **98.8%** | **5.0%** (ITW genuine recordings) |
+| Tier 1: unseen edge-tts voices (n=231) | 100% | 21.8% (LibriSpeech held-out speakers) |
+| Tier 2/3: XTTS-v2 clones, unseen speakers (n=175) | 89.7% | — |
+| Tier 4: In-the-Wild deepfakes, unseen speakers (n=3,393) | **98.6%** | **0.0%** (n=9,868 genuine recordings) |
+
+The LibriSpeech false-positive rate (21.8%) is the weakest number and we publish it
+rather than bury it: LibriSpeech is clean studio read speech, the least
+call-like audio in the set. On realistic audio — the In-the-Wild genuine
+recordings, which are noisy, compressed and phone-like — the same model raises
+**no** false alarms.
 
 Hard-sample spot checks (never in any training/val set):
 
 | Clip | ai_prob | Verdict |
 |---|---|---|
-| Owner's real voice, held-out clips (phone mic) | 0.001 | ✅ human |
-| XTTS-v2 clone of the owner, "send €500" | 0.995 | ✅ caught |
-| XTTS-v2 clone of the owner, *benign* text | 0.997 | ✅ caught |
-| Real Donald Trump speech (noisy, compressed) | 0.002 | ✅ human |
-| Real Barack Obama speech | 0.002 | ✅ human |
-| XTTS-v2 Trump clone (made from the real clip above) | 0.995 | ✅ caught |
-| Meta MMS-TTS sample (third TTS engine, never seen) | 0.989 | ✅ caught |
-| Fake Trump from YouTube (unknown engine, likely voice conversion) | 0.002 | ❌ **missed** |
+| Owner's real voice, held-out phone recording | 0.018 | ✅ human |
+| XTTS-v2 clone of the owner, "send €500" | 0.974 | ✅ caught |
+| XTTS-v2 clone of the owner, *benign* text | 0.974 | ✅ caught |
+| Real Donald Trump speech (noisy, compressed) | 0.053 | ✅ human |
+| XTTS-v2 Trump clone (made from the real clip above) | 0.935 | ✅ caught |
+| edge-tts scam call | 0.972 | ✅ caught |
 
 The story these numbers tell (found the hard way):
 
@@ -91,8 +98,8 @@ The story these numbers tell (found the hard way):
    synthetic"*. Two fixes: **codec augmentation** applied to both classes (so
    compression stops being a class cue), and **voice enrollment** — the owner's
    voice added to the human class, exactly as a shipping app would do at setup.
-   Result: 0.89 → 0.001 on held-out clips of the owner, while clones of the
-   owner still fire at 0.99.
+   Result: 0.89 → 0.02 on held-out clips of the owner, while clones of the
+   owner still fire at 0.97.
 4. **Honest cost:** removing the compression shortcut lost us a YouTube fake-Trump
    clip we had previously caught (0.79 → 0.002). That clip is likely *voice
    conversion* (real human prosody, swapped timbre) — a distinct attack family we

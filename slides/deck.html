@@ -1,0 +1,508 @@
+<title>Scam Call Shield — AMD Developer Hackathon ACT II</title>
+
+<style>
+  :root {
+    --paper:   #F4F6F6;
+    --surface: #FFFFFF;
+    --ink:     #12191A;
+    --muted:   #5A6668;
+    --rule:    #D2D9D9;
+    --accent:  #0F7B7F;
+    --accent-soft: #0F7B7F1A;
+    --verdict-human: #1B7F4C;
+    --verdict-ai:    #C0362C;
+    --verdict-warn:  #B37516;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:   #0E1516;
+      --surface: #151F20;
+      --ink:     #E8EDEC;
+      --muted:   #93A3A3;
+      --rule:    #2A393A;
+      --accent:  #4FD1C5;
+      --accent-soft: #4FD1C522;
+      --verdict-human: #3FBF7F;
+      --verdict-ai:    #F2685C;
+      --verdict-warn:  #E0A33C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:   #0E1516;
+    --surface: #151F20;
+    --ink:     #E8EDEC;
+    --muted:   #93A3A3;
+    --rule:    #2A393A;
+    --accent:  #4FD1C5;
+    --accent-soft: #4FD1C522;
+    --verdict-human: #3FBF7F;
+    --verdict-ai:    #F2685C;
+    --verdict-warn:  #E0A33C;
+  }
+  :root[data-theme="light"] {
+    --paper:   #F4F6F6;
+    --surface: #FFFFFF;
+    --ink:     #12191A;
+    --muted:   #5A6668;
+    --rule:    #D2D9D9;
+    --accent:  #0F7B7F;
+    --accent-soft: #0F7B7F1A;
+    --verdict-human: #1B7F4C;
+    --verdict-ai:    #C0362C;
+    --verdict-warn:  #B37516;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    line-height: 1.55;
+  }
+
+  .deck { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 28px 16px 64px; }
+
+  .slide {
+    position: relative;
+    width: min(100%, 1180px);
+    aspect-ratio: 16 / 9;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: clamp(28px, 4.2%, 60px) clamp(28px, 5%, 72px) clamp(52px, 6%, 78px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: clamp(10px, 1.6vw, 20px);
+    overflow: hidden;
+    container-type: inline-size;
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: clamp(9px, 1.05cqw, 13px);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .kicker::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(30px, 4.6cqw, 62px);
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(22px, 3.1cqw, 42px);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .lede {
+    font-size: clamp(13px, 1.5cqw, 20px);
+    color: var(--muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  .slide footer {
+    position: absolute;
+    left: clamp(28px, 5%, 72px);
+    right: clamp(28px, 5%, 72px);
+    bottom: clamp(18px, 2.6%, 30px);
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono);
+    font-size: clamp(8px, 0.95cqw, 11px);
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ---- title slide ---- */
+  .title-slide { justify-content: flex-end; gap: 22px; }
+  #wave { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.5; }
+  .title-slide > * { position: relative; z-index: 1; }
+  .byline {
+    font-family: var(--mono);
+    font-size: clamp(10px, 1.1cqw, 13px);
+    color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 6px 22px;
+  }
+  .byline b { color: var(--ink); font-weight: 600; }
+
+  /* ---- stats ---- */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(12px, 1.8cqw, 28px); }
+  .stat { display: flex; flex-direction: column; gap: 4px; border-top: 2px solid var(--accent); padding-top: 12px; }
+  .stat b {
+    font-family: var(--display);
+    font-size: clamp(22px, 3.4cqw, 44px);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat span { font-size: clamp(10px, 1.15cqw, 14px); color: var(--muted); line-height: 1.35; }
+  .source { font-family: var(--mono); font-size: clamp(8px, 0.95cqw, 11px); color: var(--muted); }
+
+  /* ---- two-axis / pipeline ---- */
+  .axes { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(14px, 2cqw, 32px); }
+  .axis { border: 1px solid var(--rule); border-radius: 2px; padding: clamp(12px, 1.6cqw, 22px); display: flex; flex-direction: column; gap: 8px; background: var(--paper); }
+  .axis h3 { margin: 0; font-size: clamp(13px, 1.5cqw, 19px); font-weight: 650; letter-spacing: -0.005em; }
+  .axis p { margin: 0; font-size: clamp(11px, 1.25cqw, 15px); color: var(--muted); }
+  .chain { font-family: var(--mono); font-size: clamp(9px, 1.02cqw, 12.5px); color: var(--accent); letter-spacing: 0.01em; }
+
+  /* ---- tables ---- */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: clamp(10px, 1.2cqw, 15px); }
+  caption { text-align: left; font-family: var(--mono); font-size: clamp(8px, 0.95cqw, 11px); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding-bottom: 8px; }
+  th, td { text-align: left; padding: clamp(5px, 0.75cqw, 11px) 10px; border-bottom: 1px solid var(--rule); }
+  thead th { font-family: var(--mono); font-size: clamp(8px, 0.95cqw, 11px); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--ink); }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  tbody tr:last-child td { border-bottom: none; }
+  .row-key td { background: var(--accent-soft); }
+
+  .verdict { font-family: var(--mono); font-size: 0.92em; font-weight: 600; white-space: nowrap; }
+  .human { color: var(--verdict-human); }
+  .ai    { color: var(--verdict-ai); }
+  .warn  { color: var(--verdict-warn); }
+
+  /* ---- evidence block ---- */
+  .evidence {
+    font-family: var(--mono);
+    font-size: clamp(9px, 1.12cqw, 14px);
+    line-height: 1.75;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 2px;
+    padding: clamp(12px, 1.6cqw, 22px);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .evidence .k { color: var(--muted); }
+  .evidence .v { color: var(--accent); font-weight: 600; }
+
+  .cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: clamp(16px, 2.4cqw, 40px); align-items: start; }
+
+  ul.notes { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 7px; }
+  ul.notes li { font-size: clamp(11px, 1.25cqw, 15.5px); color: var(--muted); }
+  ul.notes li strong { color: var(--ink); font-weight: 600; }
+  ul.notes li::marker { color: var(--accent); }
+
+  /* ---- roadmap ---- */
+  .road { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(12px, 1.8cqw, 28px); }
+  .road div { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .road div:first-child { border-top: 2px solid var(--accent); }
+  .road b { font-size: clamp(12px, 1.35cqw, 17px); }
+  .road span { font-size: clamp(10px, 1.15cqw, 14px); color: var(--muted); }
+  .road .when { font-family: var(--mono); font-size: clamp(8px, 0.95cqw, 11px); text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); }
+
+  .nav {
+    position: fixed; bottom: 14px; right: 16px; z-index: 10;
+    display: flex; gap: 6px;
+    font-family: var(--mono); font-size: 11px;
+  }
+  .nav button {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 2px;
+    padding: 6px 11px; cursor: pointer;
+  }
+  .nav button:hover { border-color: var(--accent); color: var(--accent); }
+  .nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 720px) {
+    .stats, .axes, .road, .cols { grid-template-columns: 1fr; }
+    .slide { aspect-ratio: auto; min-height: 60vh; }
+  }
+
+  @media print {
+    @page { size: 297mm 167mm; margin: 0; }
+    body { background: #fff; }
+    .deck { gap: 0; padding: 0; }
+    .nav { display: none; }
+    .slide {
+      width: 100%; max-width: none; border: none; border-radius: 0;
+      break-after: page; page-break-after: always;
+      aspect-ratio: 16 / 9;
+    }
+    .slide:last-child { break-after: auto; page-break-after: auto; }
+  }
+</style>
+
+<div class="deck">
+
+  <!-- 1 — TITLE -->
+  <section class="slide title-slide" id="s1">
+    <canvas id="wave" aria-hidden="true"></canvas>
+    <div class="kicker">AMD Developer Hackathon ACT II · Track 3 — Unicorn</div>
+    <h1>Your voice is no longer<br>proof that it's you.</h1>
+    <p class="lede"><strong>Scam Call Shield</strong> — real-time detection of phone scams and cloned voices, trained and evaluated on AMD GPUs via ROCm.</p>
+    <div class="byline">
+      <span><b>Vishal Kagade</b></span>
+      <span>github.com/Vishalkagade/amd-hackthaon</span>
+    </div>
+    <footer><span>Scam Call Shield</span><span>01 / 08</span></footer>
+  </section>
+
+  <!-- 2 — PROBLEM -->
+  <section class="slide" id="s2">
+    <div class="kicker">The problem</div>
+    <h2>Three seconds of audio is enough to become someone else.</h2>
+    <p class="lede">Voice cloning crossed the indistinguishable threshold, and the attack it enables — a panicked call from someone you love — defeats the one check people actually use: <strong>recognising the voice.</strong></p>
+    <div class="stats">
+      <div class="stat"><b>1,210%</b><span>rise in AI-enabled scams during 2025</span></div>
+      <div class="stat"><b>$3B+</b><span>FBI-reported losses involving voice cloning</span></div>
+      <div class="stat"><b>1 in 4</b><span>adults has already received an AI voice scam call</span></div>
+      <div class="stat"><b>$18k</b><span>average loss for those who engage</span></div>
+    </div>
+    <p class="source">Sources: FBI IC3, Europol (2025). Existing defences — call-backs, code words — fail precisely when the victim is under pressure, in real time.</p>
+    <footer><span>The problem</span><span>02 / 08</span></footer>
+  </section>
+
+  <!-- 3 — SOLUTION -->
+  <section class="slide" id="s3">
+    <div class="kicker">The approach</div>
+    <h2>A call can lie in two independent ways. So we check both.</h2>
+    <div class="axes">
+      <div class="axis">
+        <h3>What is being said</h3>
+        <p>Whisper transcribes the call locally on-GPU; an open LLM served by Fireworks AI scores scam patterns — urgency, impersonation, secrecy, payment requests — and gives the callee plain-language advice.</p>
+        <div class="chain">audio → whisper (local) → LLM → risk + advice</div>
+      </div>
+      <div class="axis">
+        <h3>Who is speaking</h3>
+        <p>A wav2vec2 detector, fine-tuned on AMD via ROCm, scores every 3-second window for synthesis artefacts and drives a live authenticity meter.</p>
+        <div class="chain">audio → mel + wav2vec2 → AI-voice probability</div>
+      </div>
+    </div>
+    <p class="lede">A human reading a scam script trips only the first. <strong>A clone of your daughter saying something ordinary trips only the second</strong> — and that is the attack nobody else is watching for.</p>
+    <footer><span>The approach</span><span>03 / 08</span></footer>
+  </section>
+
+  <!-- 4 — DEMO -->
+  <section class="slide" id="s4">
+    <div class="kicker">Live demo — a clone of my own voice</div>
+    <h2>The benign clone is the one that should scare you.</h2>
+    <div class="tbl-wrap">
+      <table>
+        <caption>Detector output — clips never seen in training</caption>
+        <thead>
+          <tr><th>Audio</th><th>Words spoken</th><th style="text-align:right">Scam risk</th><th style="text-align:right">AI-voice</th><th>Verdict</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>My real voice</td><td>ordinary conversation</td>
+            <td class="num">5 / 100</td><td class="num">0.018</td>
+            <td class="verdict human">HUMAN — clear</td>
+          </tr>
+          <tr>
+            <td>Clone of me</td><td>"Send €500, don't tell anyone"</td>
+            <td class="num">95 / 100</td><td class="num">0.974</td>
+            <td class="verdict ai">SCAM + AI VOICE</td>
+          </tr>
+          <tr class="row-key">
+            <td>Clone of me</td><td>"I'll be late for dinner"</td>
+            <td class="num">5 / 100</td><td class="num">0.974</td>
+            <td class="verdict ai">AI VOICE — words are innocent</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lede">Row three is the whole argument. Nothing in the transcript is suspicious — <strong>a text-only scam detector sees a completely normal call.</strong> But it isn't me speaking.</p>
+    <footer><span>Live demo</span><span>04 / 08</span></footer>
+  </section>
+
+  <!-- 5 — EVALUATION -->
+  <section class="slide" id="s5">
+    <div class="kicker">Evaluation — four tiers, no leakage</div>
+    <h2>Most deepfake numbers are inflated. These aren't.</h2>
+    <div class="tbl-wrap">
+      <table>
+        <caption>wav2vec2 detector, trained &amp; evaluated on AMD gfx1100 · every tier speaker- and engine-disjoint</caption>
+        <thead>
+          <tr><th>Test tier</th><th>What it measures</th><th style="text-align:right">n</th><th style="text-align:right">Detected</th><th style="text-align:right">False alarms</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1 · Unseen voices</td><td>New TTS voices, engine seen in training</td><td class="num">231</td><td class="num">100%</td><td class="num">—</td></tr>
+          <tr><td>2/3 · Voice clones</td><td>XTTS-v2 clones of speakers never trained on</td><td class="num">175</td><td class="num">89.7%</td><td class="num">—</td></tr>
+          <tr class="row-key"><td>4 · Real deepfakes</td><td>In-the-Wild: internet deepfakes of public figures</td><td class="num">3,393</td><td class="num">98.6%</td><td class="num">0.0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lede">Tier 4 is the headline: <strong>98.6% detection on 3,393 real-world deepfakes, with zero false alarms</strong> across 9,868 genuine recordings of the same people. Trained only on studio TTS, this same model caught just <strong>13–23%</strong> of real clones — engine-disjoint generalisation is the problem everyone skips.</p>
+    <footer><span>Evaluation</span><span>05 / 08</span></footer>
+  </section>
+
+  <!-- 6 — THE FAILURE -->
+  <section class="slide" id="s6">
+    <div class="kicker">What went wrong — and what it taught us</div>
+    <h2>The detector called me a robot.</h2>
+    <div class="cols">
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <p class="lede">Late in the build, the model scored my own phone recording at <span class="verdict ai">0.891 — AI</span>. Not a threshold problem: a <strong>data</strong> problem. Every human sample we had was studio speech or compressed internet audio. Every AI sample was clean and mp3-encoded. The model had quietly learned <em>"clean + compressed = synthetic"</em>.</p>
+        <ul class="notes">
+          <li><strong>Codec augmentation</strong> on both classes — compression stops being a class cue.</li>
+          <li><strong>Voice enrollment</strong> — the owner's voice joins the human class, exactly as a shipping app would do at setup.</li>
+        </ul>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <caption>Held-out clips of my voice — never trained on</caption>
+          <thead><tr><th>Model</th><th style="text-align:right">AI-prob</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr><td>Before</td><td class="num">0.891</td><td class="verdict ai">AI ✕</td></tr>
+            <tr class="row-key"><td>After</td><td class="num">0.018</td><td class="verdict human">HUMAN ✓</td></tr>
+            <tr><td>Clone of me</td><td class="num">0.974</td><td class="verdict ai">AI ✓</td></tr>
+          </tbody>
+        </table>
+        <p class="source" style="margin-top:12px">Honest cost: removing the compression shortcut lost us one YouTube deepfake (0.79 → 0.002) — a <em>voice-conversion</em> attack, a family we have no training data for. We report the miss.</p>
+      </div>
+    </div>
+    <footer><span>The failure</span><span>06 / 08</span></footer>
+  </section>
+
+  <!-- 7 — AMD -->
+  <section class="slide" id="s7">
+    <div class="kicker">AMD compute — committed evidence</div>
+    <h2>Trained and evaluated on AMD, ROCm end to end.</h2>
+    <div class="cols">
+      <div class="evidence"><span class="k">"gpu":</span>   <span class="v">"AMD GPU (gfx1100)"</span>
+<span class="k">"vram_gb":</span> <span class="v">51.5</span>
+<span class="k">"rocm":</span>  <span class="v">true</span>
+<span class="k">"hip":</span>   <span class="v">"7.2.53211"</span>
+<span class="k">"torch":</span> <span class="v">"2.9.1"</span>
+
+<span class="k">"itw_val_acc":</span>       <span class="v">0.97</span>
+<span class="k">"owner_heldout_acc":</span> <span class="v">1.00</span></div>
+      <ul class="notes">
+        <li><strong>Zero code changes between vendors.</strong> ROCm exposes AMD GPUs through the standard <code>torch.cuda</code> API — the same training script runs unmodified on either stack, and the log records which one it ran on.</li>
+        <li><strong>The LLM axis is AMD too.</strong> Scam analysis is served by Fireworks AI, running open models on AMD accelerators.</li>
+        <li><strong>Reproducible.</strong> <code>train_on_amd.ipynb</code> rebuilds the dataset, trains both detectors, and regenerates the four-tier table.</li>
+      </ul>
+    </div>
+    <footer><span>AMD compute</span><span>07 / 08</span></footer>
+  </section>
+
+  <!-- 8 — ROADMAP -->
+  <section class="slide" id="s8">
+    <div class="kicker">Where this goes</div>
+    <h2>The model is one artefact. The pipeline is the asset.</h2>
+    <div class="road">
+      <div>
+        <span class="when">Shipping now</span>
+        <b>Speakerphone MVP</b>
+        <span>The mic hears both sides of the call. Works today, on any phone, with no OS permissions.</span>
+      </div>
+      <div>
+        <span class="when">Next</span>
+        <b>On-device detector</b>
+        <span>Quantised to int8, the detector runs on a phone NPU. No call audio ever leaves the handset.</span>
+      </div>
+      <div>
+        <span class="when">The real unlock</span>
+        <b>Carrier &amp; OEM</b>
+        <span>A network operator screens the call before it rings — protecting the people who will never install an app.</span>
+      </div>
+    </div>
+    <p class="lede">Every cloning engine that ships makes today's checkpoint staler. What holds is the loop we built: <strong>generate an attack set for any new engine → retrain → re-measure across four honest tiers.</strong> That is what a handset maker or a regulator cannot easily rebuild — and what makes this defensible past demo day.</p>
+    <footer><span>github.com/Vishalkagade/amd-hackthaon</span><span>08 / 08</span></footer>
+  </section>
+</div>
+
+<nav class="nav" aria-label="Slide navigation">
+  <button type="button" data-dir="-1" aria-label="Previous slide">← Prev</button>
+  <button type="button" data-dir="1" aria-label="Next slide">Next →</button>
+</nav>
+
+<script>
+  // Keyboard + button navigation between slides.
+  const slides = [...document.querySelectorAll('.slide')];
+  let idx = 0;
+  function go(dir) {
+    idx = Math.max(0, Math.min(slides.length - 1, idx + dir));
+    slides[idx].scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  }
+  document.querySelectorAll('.nav button').forEach(b =>
+    b.addEventListener('click', () => go(Number(b.dataset.dir))));
+  addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft'  || e.key === 'PageUp')   { e.preventDefault(); go(-1); }
+  });
+  // Track which slide is centred so arrow keys stay in sync with scrolling.
+  const obs = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) idx = slides.indexOf(e.target);
+  }), { threshold: 0.6 });
+  slides.forEach(s => obs.observe(s));
+
+  // Title slide: an utterance that starts human and turns synthetic mid-sentence.
+  const cvs = document.getElementById('wave');
+  const ctx = cvs.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let t0 = null;
+
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function draw(progress) {
+    const w = cvs.width, h = cvs.height, mid = h * 0.62;
+    ctx.clearRect(0, 0, w, h);
+    const flip = 0.58;                       // where the voice stops being real
+    const human = css('--verdict-human'), ai = css('--verdict-ai');
+    const step = 2;
+
+    for (let px = 0; px < w * progress; px += step) {
+      const x = px / w;
+      // Human speech: layered harmonics with an uneven, breathing envelope.
+      const env = (0.55 + 0.45 * Math.sin(x * 21)) * (0.6 + 0.4 * Math.sin(x * 3.3 + 1.2));
+      let amp = Math.sin(x * 190) * 0.55 + Math.sin(x * 91 + 0.7) * 0.3 + Math.sin(x * 331) * 0.15;
+      let jitter = (Math.sin(x * 1013) + Math.sin(x * 617)) * 0.06;   // micro-irregularity
+      if (x > flip) {
+        // Synthetic: over-regular envelope, jitter collapses, harmonics too clean.
+        const k = Math.min(1, (x - flip) / 0.06);
+        amp = amp * (1 - k) + (Math.sin(x * 190) * 0.62 + Math.sin(x * 380) * 0.2) * k;
+        jitter *= (1 - k);
+      }
+      const y = (amp * env + jitter) * h * 0.2;
+      ctx.strokeStyle = x > flip ? ai : human;
+      ctx.globalAlpha = x > flip ? 0.55 : 0.38;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(px, mid - y);
+      ctx.lineTo(px, mid + y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function frame(ts) {
+    if (t0 === null) t0 = ts;
+    const p = Math.min(1, (ts - t0) / 2200);
+    draw(p);
+    if (p < 1) requestAnimationFrame(frame);
+  }
+
+  function size() {
+    const r = cvs.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+    cvs.width = r.width * dpr; cvs.height = r.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cvs.width = r.width; cvs.height = r.height;   // logical units for the draw math
+    draw(1);
+  }
+  addEventListener('resize', size);
+  size();
+  if (!reduce) { t0 = null; requestAnimationFrame(frame); }
+</script>

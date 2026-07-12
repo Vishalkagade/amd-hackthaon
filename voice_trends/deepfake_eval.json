@@ -3,40 +3,40 @@
   "n_val_ai_edge_tts": 231,
   "n_xtts_clones": 175,
   "threshold": 0.5,
-  "n_itw_test_fake": 3393,
-  "n_itw_test_real": 9868,
+  "n_itw_test_fake": 702,
+  "n_itw_test_real": 642,
   "cnn_baseline": {
     "tier1_edge_tts_unseen_voice_detection": 1.0,
-    "tier1_mean_ai_prob": 0.992561436321394,
-    "tier23_xtts_clone_detection": 1.0,
-    "tier23_mean_ai_prob": 0.9794959186445288,
-    "human_false_positive_rate": 0.5532994923857868,
-    "human_mean_ai_prob": 0.5475282978192286,
-    "tier4_itw_deepfake_detection": 0.9870321249631594,
-    "tier4_itw_mean_ai_prob": 0.980335811388496,
-    "tier4_itw_human_false_positive_rate": 0.3869071747061208,
+    "tier1_mean_ai_prob": 0.9804982051901462,
+    "tier23_xtts_clone_detection": 0.9942857142857143,
+    "tier23_mean_ai_prob": 0.9534132021073581,
+    "human_false_positive_rate": 0.5228426395939086,
+    "human_mean_ai_prob": 0.5242345669725474,
+    "tier4_itw_deepfake_detection": 0.9615384615384616,
+    "tier4_itw_mean_ai_prob": 0.9240848274772211,
+    "tier4_itw_human_false_positive_rate": 0.17757009345794392,
     "hard_samples": {
-      "Barack Obama.wav": 0.238,
-      "Donald Trump.wav": 0.702,
-      "fake_trump.wav": 0.139,
-      "mms_0005.wav": 0.993
+      "Barack Obama.wav": 0.455,
+      "Donald Trump.wav": 0.748,
+      "fake_trump.wav": 0.001,
+      "mms_0005.wav": 0.985
     }
   },
   "wav2vec2_finetuned": {
     "tier1_edge_tts_unseen_voice_detection": 1.0,
-    "tier1_mean_ai_prob": 0.9976058354406334,
-    "tier23_xtts_clone_detection": 0.8742857142857143,
-    "tier23_mean_ai_prob": 0.8717905702231308,
-    "human_false_positive_rate": 0.16751269035532995,
-    "human_mean_ai_prob": 0.17247189247377712,
-    "tier4_itw_deepfake_detection": 0.9882110226937814,
-    "tier4_itw_mean_ai_prob": 0.9868665980025858,
-    "tier4_itw_human_false_positive_rate": 0.05016214025131739,
+    "tier1_mean_ai_prob": 0.9736436714448118,
+    "tier23_xtts_clone_detection": 0.8971428571428571,
+    "tier23_mean_ai_prob": 0.8745634167299788,
+    "human_false_positive_rate": 0.2182741116751269,
+    "human_mean_ai_prob": 0.27869663360589014,
+    "tier4_itw_deepfake_detection": 0.9857549857549858,
+    "tier4_itw_mean_ai_prob": 0.9518575550102653,
+    "tier4_itw_human_false_positive_rate": 0.0,
     "hard_samples": {
-      "Barack Obama.wav": 0.002,
-      "Donald Trump.wav": 0.002,
-      "fake_trump.wav": 0.002,
-      "mms_0005.wav": 0.995
+      "Barack Obama.wav": 0.04,
+      "Donald Trump.wav": 0.053,
+      "fake_trump.wav": 0.19,
+      "mms_0005.wav": 0.946
     }
   }
 }

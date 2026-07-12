@@ -1,55 +1,58 @@
 {
   "base_model": "facebook/wav2vec2-base",
-  "gpu": "NVIDIA GeForce RTX 4090",
-  "rocm": false,
-  "torch": "2.13.0+cu130",
+  "gpu": "AMD GPU (gfx1100)",
+  "gcn_arch": "gfx1100",
+  "vram_gb": 51.5,
+  "rocm": true,
+  "hip": "7.2.53211-e1a6bc5663",
+  "torch": "2.9.1+gitff65f5b",
   "split": "voice-disjoint (5 held-out TTS voices, 15% held-out speakers) + XTTS clone train/val/test by speaker; selection = mean(val_acc, clone_val_acc)",
-  "best_val_acc": 0.947950236330433,
+  "best_val_acc": 0.9287851810076271,
   "history": [
     {
       "epoch": 1,
-      "train_loss": 0.3619408890706147,
-      "val_acc_voice_disjoint": 0.9415887850467289,
-      "clone_val_acc": 0.6551724137931034,
-      "itw_val_acc": 0.95,
+      "train_loss": 0.46720188357774783,
+      "val_acc_voice_disjoint": 0.9158878504672897,
+      "clone_val_acc": 0.8275862068965517,
+      "itw_val_acc": 0.9716666666666667,
       "owner_heldout_acc": 1.0,
-      "seconds": 58.5
+      "seconds": 465.6
     },
     {
       "epoch": 2,
-      "train_loss": 0.0814346592655421,
-      "val_acc_voice_disjoint": 0.9369158878504673,
-      "clone_val_acc": 0.896551724137931,
-      "itw_val_acc": 0.9583333333333334,
-      "owner_heldout_acc": 1.0,
-      "seconds": 60.0
+      "train_loss": 0.12355170443358011,
+      "val_acc_voice_disjoint": 0.9415887850467289,
+      "clone_val_acc": 0.7586206896551724,
+      "itw_val_acc": 0.9683333333333334,
+      "owner_heldout_acc": 0.9615384615384616,
+      "seconds": 428.4
     },
     {
       "epoch": 3,
-      "train_loss": 0.04188102357508485,
-      "val_acc_voice_disjoint": 0.9742990654205608,
-      "clone_val_acc": 0.6379310344827587,
-      "itw_val_acc": 0.9566666666666667,
+      "train_loss": 0.06556746794145234,
+      "val_acc_voice_disjoint": 0.9766355140186916,
+      "clone_val_acc": 0.41379310344827586,
+      "itw_val_acc": 0.955,
       "owner_heldout_acc": 1.0,
-      "seconds": 59.0
+      "seconds": 427.7
     },
     {
       "epoch": 4,
-      "train_loss": 0.02465459947866027,
-      "val_acc_voice_disjoint": 0.985981308411215,
-      "clone_val_acc": 0.5862068965517241,
-      "itw_val_acc": 0.9566666666666667,
+      "train_loss": 0.04303167287926406,
+      "val_acc_voice_disjoint": 0.9649532710280374,
+      "clone_val_acc": 0.603448275862069,
+      "itw_val_acc": 0.9683333333333334,
       "owner_heldout_acc": 1.0,
-      "seconds": 58.8
+      "seconds": 427.8
     },
     {
       "epoch": 5,
-      "train_loss": 0.012595429050092116,
-      "val_acc_voice_disjoint": 0.985981308411215,
-      "clone_val_acc": 0.5344827586206896,
-      "itw_val_acc": 0.9583333333333334,
+      "train_loss": 0.03610459703409317,
+      "val_acc_voice_disjoint": 0.9672897196261683,
+      "clone_val_acc": 0.5517241379310345,
+      "itw_val_acc": 0.965,
       "owner_heldout_acc": 1.0,
-      "seconds": 58.9
+      "seconds": 427.8
     }
   ]
 }
