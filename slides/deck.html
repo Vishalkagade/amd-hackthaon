@@ -113,7 +113,7 @@
   .lede {
     font-size: clamp(13px, 1.5cqw, 20px);
     color: var(--muted);
-    max-width: 62ch;
+    max-width: 74ch;
     margin: 0;
   }
   .lede strong { color: var(--ink); font-weight: 600; }
@@ -134,8 +134,8 @@
   }
 
   /* ---- title slide ---- */
-  .title-slide { justify-content: flex-end; gap: 22px; }
-  #wave { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.5; }
+  .title-slide { justify-content: center; gap: clamp(14px, 1.9cqw, 26px); }
+  #wave { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.62; }
   .title-slide > * { position: relative; z-index: 1; }
   .byline {
     font-family: var(--mono);
@@ -144,6 +144,10 @@
     display: flex; flex-wrap: wrap; gap: 6px 22px;
   }
   .byline b { color: var(--ink); font-weight: 600; }
+  .wave-key { display: flex; align-items: center; gap: 6px; }
+  .wave-key .sw { width: 9px; height: 9px; border-radius: 1px; display: inline-block; }
+  .wave-key .sw.human { background: var(--verdict-human); }
+  .wave-key .sw.ai { background: var(--verdict-ai); margin-left: 8px; }
 
   /* ---- stats ---- */
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(12px, 1.8cqw, 28px); }
@@ -232,13 +236,23 @@
 
   @media print {
     @page { size: 297mm 167mm; margin: 0; }
-    body { background: #fff; }
-    .deck { gap: 0; padding: 0; }
+    html, body { background: #fff; margin: 0; padding: 0; }
+    .deck { gap: 0; padding: 0; display: block; }
     .nav { display: none; }
     .slide {
-      width: 100%; max-width: none; border: none; border-radius: 0;
+      /* Exact page box: aspect-ratio + borders overflow and split each slide
+         across two sheets, so pin the dimensions instead. */
+      box-sizing: border-box;
+      width: 297mm;
+      height: 167mm;
+      max-width: none;
+      aspect-ratio: auto;
+      margin: 0;
+      border: none;
+      border-radius: 0;
+      overflow: hidden;
+      break-inside: avoid; page-break-inside: avoid;
       break-after: page; page-break-after: always;
-      aspect-ratio: 16 / 9;
     }
     .slide:last-child { break-after: auto; page-break-after: auto; }
   }
@@ -255,6 +269,7 @@
     <div class="byline">
       <span><b>Vishal Kagade</b></span>
       <span>github.com/Vishalkagade/amd-hackthaon</span>
+      <span class="wave-key"><i class="sw human"></i>human speech <i class="sw ai"></i>synthesised</span>
     </div>
     <footer><span>Scam Call Shield</span><span>01 / 08</span></footer>
   </section>
