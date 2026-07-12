@@ -27,6 +27,27 @@ from .model import (
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def codec_artifacts(wav: torch.Tensor) -> torch.Tensor:
+    """Approximate lossy-codec (mp3/AAC) damage without an ffmpeg dependency.
+
+    Zeroes a random slice of high-frequency STFT bins and quantises the rest —
+    the perceptual-coder behaviours that a detector could otherwise mistake for
+    synthesis artefacts.
+    """
+    spec = torch.stft(wav, n_fft=512, hop_length=128,
+                      window=torch.hann_window(512), return_complex=True)
+    n_bins = spec.shape[0]
+    cutoff = random.randint(int(n_bins * 0.55), n_bins)
+    spec[cutoff:] = 0                                    # coder drops HF content
+    mag, phase = spec.abs(), spec.angle()
+    step = mag.max() / random.choice([64, 128, 256])     # coarse quantisation
+    mag = (mag / (step + 1e-9)).round() * step
+    spec = torch.polar(mag, phase)
+    out = torch.istft(spec, n_fft=512, hop_length=128,
+                      window=torch.hann_window(512), length=len(wav))
+    return out
+
+
 class VoiceDataset(Dataset):
     """Loads wavs, cuts a random 3 s window, applies phone-call-style augmentation.
 
@@ -78,6 +99,12 @@ class VoiceDataset(Dataset):
                 wav = wav + k * noise
             if random.random() < 0.3:
                 wav = self.resample_up(self.resample_down(wav))
+            # Lossy-codec artefacts must not become a "synthetic" cue: our TTS
+            # clips arrive mp3-encoded while LibriSpeech does not, so without
+            # this the model learns "compressed = AI" and flags real phone
+            # recordings. Applied to BOTH classes.
+            if random.random() < 0.4:
+                wav = codec_artifacts(wav)
             wav = wav.clamp(-1, 1)
 
         return wav, self.labels[i]

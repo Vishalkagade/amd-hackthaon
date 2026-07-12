@@ -24,19 +24,19 @@
   },
   "wav2vec2_finetuned": {
     "tier1_edge_tts_unseen_voice_detection": 1.0,
-    "tier1_mean_ai_prob": 0.9906462108788684,
-    "tier23_xtts_clone_detection": 0.8457142857142858,
-    "tier23_mean_ai_prob": 0.8387537680318338,
-    "human_false_positive_rate": 0.09644670050761421,
-    "human_mean_ai_prob": 0.1162182155713967,
-    "tier4_itw_deepfake_detection": 0.9861479516651931,
-    "tier4_itw_mean_ai_prob": 0.9779665241864534,
-    "tier4_itw_human_false_positive_rate": 0.0694162950952574,
+    "tier1_mean_ai_prob": 0.9976058354406334,
+    "tier23_xtts_clone_detection": 0.8742857142857143,
+    "tier23_mean_ai_prob": 0.8717905702231308,
+    "human_false_positive_rate": 0.16751269035532995,
+    "human_mean_ai_prob": 0.17247189247377712,
+    "tier4_itw_deepfake_detection": 0.9882110226937814,
+    "tier4_itw_mean_ai_prob": 0.9868665980025858,
+    "tier4_itw_human_false_positive_rate": 0.05016214025131739,
     "hard_samples": {
-      "Barack Obama.wav": 0.014,
-      "Donald Trump.wav": 0.008,
-      "fake_trump.wav": 0.791,
-      "mms_0005.wav": 0.989
+      "Barack Obama.wav": 0.002,
+      "Donald Trump.wav": 0.002,
+      "fake_trump.wav": 0.002,
+      "mms_0005.wav": 0.995
     }
   }
 }

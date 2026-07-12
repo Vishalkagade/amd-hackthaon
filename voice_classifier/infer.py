@@ -14,6 +14,7 @@ from .model import VoiceCNN, make_melspec, pick_device, SAMPLE_RATE, CLIP_SAMPLE
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CKPT = ROOT / "voice_trends" / "voice_cnn_best.pt"
 W2V_DIR = ROOT / "voice_trends" / "wav2vec2_finetuned"
+MAX_BATCH = 32  # windows scored per forward pass (a long call has hundreds)
 
 
 class VoiceAuthenticity:
@@ -50,10 +51,14 @@ class VoiceAuthenticity:
             for start in range(0, len(t) - CLIP_SAMPLES + 1, hop):
                 windows.append(t[start:start + CLIP_SAMPLES])
 
-        batch = torch.stack(windows).to(self.device)
-        x = self.melspec(batch).unsqueeze(1)
-        probs = torch.softmax(self.model(x), dim=1)[:, 1]  # index 1 == "ai"
-        probs = probs.cpu().numpy().tolist()
+        # Score in chunks — a long call has hundreds of windows and scoring them
+        # in one batch exhausts GPU memory.
+        probs = []
+        for i in range(0, len(windows), MAX_BATCH):
+            batch = torch.stack(windows[i:i + MAX_BATCH]).to(self.device)
+            x = self.melspec(batch).unsqueeze(1)
+            p = torch.softmax(self.model(x), dim=1)[:, 1]  # index 1 == "ai"
+            probs += p.cpu().numpy().tolist()
         return float(np.mean(probs)), probs
 
     def score_file(self, path, **kw):
@@ -109,7 +114,10 @@ class W2VAuthenticity(VoiceAuthenticity):
             for start in range(0, len(t) - CLIP_SAMPLES + 1, hop):
                 windows.append(t[start:start + CLIP_SAMPLES])
 
-        probs = self._score_windows(torch.stack(windows)).cpu().numpy().tolist()
+        probs = []
+        for i in range(0, len(windows), MAX_BATCH):
+            p = self._score_windows(torch.stack(windows[i:i + MAX_BATCH]))
+            probs += p.cpu().numpy().tolist()
         return float(np.mean(probs)), probs
 
 

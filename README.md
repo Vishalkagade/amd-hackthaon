@@ -38,33 +38,46 @@ four difficulty tiers, each **speaker- and voice-disjoint** from training:
 
 | wav2vec2-base fine-tuned (production) | Detection | False positives on real humans |
 |---|---|---|
-| Tier 1: unseen edge-tts voices | 100% | 9.6% (LibriSpeech held-out speakers) |
-| Tier 2/3: XTTS-v2 clones, unseen speakers | 84.6% | — |
-| Tier 4: In-the-Wild deepfakes, unseen speakers | **98.6%** | **6.9%** (ITW genuine recordings) |
+| Tier 1: unseen edge-tts voices | 100% | 16.8% (LibriSpeech held-out speakers) |
+| Tier 2/3: XTTS-v2 clones, unseen speakers | 87.4% | — |
+| Tier 4: In-the-Wild deepfakes, unseen speakers | **98.8%** | **5.0%** (ITW genuine recordings) |
 
 Hard-sample spot checks (never in any training/val set):
 
 | Clip | ai_prob | Verdict |
 |---|---|---|
-| Real Donald Trump speech (noisy, compressed) | 0.008 | ✅ human |
-| Real Barack Obama speech | 0.014 | ✅ human |
-| Fake Trump downloaded from YouTube (unknown 2026 engine) | 0.791 | ✅ **caught** |
-| XTTS-v2 Trump clone (made from the real clip above) | 0.989 | ✅ caught |
+| Owner's real voice, held-out clips (phone mic) | 0.001 | ✅ human |
+| XTTS-v2 clone of the owner, "send €500" | 0.995 | ✅ caught |
+| XTTS-v2 clone of the owner, *benign* text | 0.997 | ✅ caught |
+| Real Donald Trump speech (noisy, compressed) | 0.002 | ✅ human |
+| Real Barack Obama speech | 0.002 | ✅ human |
+| XTTS-v2 Trump clone (made from the real clip above) | 0.995 | ✅ caught |
 | Meta MMS-TTS sample (third TTS engine, never seen) | 0.989 | ✅ caught |
+| Fake Trump from YouTube (unknown engine, likely voice conversion) | 0.002 | ❌ **missed** |
 
 The story these numbers tell (found the hard way):
 
 1. Trained only on edge-tts, both models scored ~100% on tier 1 but **13–23% on
    XTTS clones** — engine-disjoint generalization is the real problem.
 2. Adding XTTS clones + In-the-Wild to training, with checkpoint selection on
-   `mean(tier1, clone_val, itw_val)`, fixed it — but only for the pretrained
-   model. The from-scratch CNN baseline could only "solve" clones by flagging
-   everything (46–58% human false positives); wav2vec2's 960 h of
+   `mean(tier1, clone_val, itw_val, owner)`, fixed it — but only for the
+   pretrained model. The from-scratch CNN baseline could only "solve" clones by
+   flagging everything (46–58% human false positives); wav2vec2's 960 h of
    self-supervised pretraining is what learns actual synthesis artifacts.
-3. A YouTube fake-Trump clip was still missed (p=0.003) until we added XTTS
-   clones generated from **noisy internet reference audio** — clones from clean
-   references alone don't cover the clone-from-internet-audio attack. After
-   that: p=0.791.
+3. **The model then flagged the author's own phone recording as AI (p=0.89).**
+   Root cause: our human data (LibriSpeech, internet audio) contains no modern
+   consumer-phone recordings, while our AI data is uniformly clean and
+   mp3-encoded — so the model had quietly learned *"clean + compressed =
+   synthetic"*. Two fixes: **codec augmentation** applied to both classes (so
+   compression stops being a class cue), and **voice enrollment** — the owner's
+   voice added to the human class, exactly as a shipping app would do at setup.
+   Result: 0.89 → 0.001 on held-out clips of the owner, while clones of the
+   owner still fire at 0.99.
+4. **Honest cost:** removing the compression shortcut lost us a YouTube fake-Trump
+   clip we had previously caught (0.79 → 0.002). That clip is likely *voice
+   conversion* (real human prosody, swapped timbre) — a distinct attack family we
+   have no training data for. We report the miss rather than hide it; RVC-style
+   training data is the clear next iteration.
 
 Full numbers: [`voice_trends/deepfake_eval.json`](voice_trends/deepfake_eval.json).
 Reproduce: `make_xtts_clones.py` (isolated Coqui venv, see Quickstart) →
@@ -146,6 +159,12 @@ python app.py                          # http://localhost:7860
   production deployment would fine-tune on genuine call recordings.
 - In-the-Wild's deepfakes are ~2022-era; continuous retraining against current
   engines (F5-TTS, OpenVoice, commercial cloning APIs) is the roadmap.
+- **Voice conversion (RVC-style) is not yet covered** — see the missed YouTube
+  clip above. TTS and cloning synthesise speech from text; voice conversion keeps
+  a real human's prosody and swaps only timbre, leaving far fewer artefacts.
+  Training data for it is the top priority for the next iteration.
+- Enrollment (the owner's voice in the human class) is what a shipping app does at
+  setup. Reported numbers use held-out owner clips the model never trained on.
 
 ## Repo layout
 
@@ -156,7 +175,8 @@ scam_detector.py           Fireworks AI scam analysis (JSON verdict)
 voice_classifier/
   model.py                 mel-spectrogram CNN + device selection (CUDA/ROCm)
   prepare_data.py          LibriSpeech + edge-tts dataset builder
-  splits.py                voice-disjoint split + 3-way XTTS clone split
+  splits.py                voice-disjoint split + 3-way XTTS clone split + enrollment
+  enroll.py                voice enrollment: owner's voice -> held-out train/test clips
   train.py                 CNN baseline training loop (device-agnostic)
   finetune_w2v.py          wav2vec2-base fine-tuning (production detector)
   make_xtts_clones.py      XTTS-v2 voice-clone attack set (runs in .venv-tts)

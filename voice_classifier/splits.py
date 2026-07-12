@@ -37,6 +37,10 @@ CLONE_OVERSAMPLE = 4
 # conversion + genuine recordings of the same people. Split BY SPEAKER
 # (70/10/20 train/val/test) so evaluation speakers are never trained on.
 ITW_TRAIN_CAP = 4000  # per-label cap so ITW doesn't swamp the other sources
+# Voice enrollment (see enroll.py): the device owner's own voice, so the model
+# knows the one human it must never mistake for a clone. Oversampled because a
+# few minutes of audio is tiny next to thousands of other clips.
+OWNER_OVERSAMPLE = 12
 ITW_VAL_CAP = 600     # checkpoint selection stays fast
 # Demo speakers: force into TEST so they are never trained on and never
 # influence checkpoint selection.
@@ -80,7 +84,10 @@ def itw_splits():
     for r in rows:
         f = ITW_DIR / r["file"]
         if not f.exists():
-            continue
+            # Compact upload bundles ship 16-bit FLAC instead of 32-bit float WAV.
+            f = f.with_suffix(".flac")
+            if not f.exists():
+                continue
         y = ai_label if r["label"].strip() == "spoof" else human_label
         files, labels = out[bucket_of[r["speaker"]]]
         files.append(str(f))
@@ -170,7 +177,19 @@ def build_disjoint_splits(data_dir: Path):
     tr_f += itwref
     tr_y += [ai_label] * len(itwref)
 
+    # Enrolled owner voice (human). The held-out owner_test/ split is never
+    # added here — it is the honest check that enrollment generalises.
+    owner = sorted((data_dir / "owner_train").glob("owner_*.wav"))
+    owner = [str(f) for f in owner] * OWNER_OVERSAMPLE
+    tr_f += owner
+    tr_y += [human_label] * len(owner)
+
     return tr_f, tr_y, va_f, va_y
+
+
+def owner_test_files(data_dir: Path):
+    """Held-out clips of the device owner — never trained on."""
+    return [str(f) for f in sorted((Path(data_dir) / "owner_test").glob("owner_*.wav"))]
 
 
 if __name__ == "__main__":

@@ -84,6 +84,15 @@ def main():
         dl_itw = DataLoader(iv, batch_size=args.batch_size, num_workers=args.workers)
         print(f"itw-val={len(iv)}")
 
+    # Held-out owner clips (human): the model must not flag the device owner.
+    from .splits import owner_test_files
+    owner_te = owner_test_files(Path(args.data))
+    dl_owner = None
+    if owner_te:
+        ov = VoiceDataset(owner_te, [LABELS.index("human")] * len(owner_te), False)
+        dl_owner = DataLoader(ov, batch_size=args.batch_size, num_workers=args.workers)
+        print(f"owner-test={len(ov)} (held out)")
+
     model = AutoModelForAudioClassification.from_pretrained(
         BASE_MODEL,
         num_labels=len(LABELS),
@@ -123,16 +132,18 @@ def main():
         acc = evaluate(model, dl_va, device)
         cv_acc = evaluate(model, dl_cv, device) if dl_cv else None
         itw_acc = evaluate(model, dl_itw, device) if dl_itw else None
-        parts = [m for m in (acc, cv_acc, itw_acc) if m is not None]
+        own_acc = evaluate(model, dl_owner, device) if dl_owner else None
+        parts = [m for m in (acc, cv_acc, itw_acc, own_acc) if m is not None]
         select = sum(parts) / len(parts)
         history.append({"epoch": epoch, "train_loss": tr_loss / n,
                         "val_acc_voice_disjoint": acc,
                         "clone_val_acc": cv_acc, "itw_val_acc": itw_acc,
+                        "owner_heldout_acc": own_acc,
                         "seconds": round(time.time() - t0, 1)})
         fmt = lambda v: f"{v:.4f}" if v is not None else "  -   "
         print(f"epoch {epoch}  loss {tr_loss/n:.4f}  val_acc {acc:.4f}  "
               f"clone_val {fmt(cv_acc)}  itw_val {fmt(itw_acc)}  "
-              f"({history[-1]['seconds']}s)")
+              f"owner {fmt(own_acc)}  ({history[-1]['seconds']}s)")
 
         if select > best_acc:
             best_acc = select

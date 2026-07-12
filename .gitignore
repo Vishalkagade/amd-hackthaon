@@ -11,3 +11,8 @@ Participant Guide*
 hackathon_conversation.txt
 voice_trends/wav2vec2_finetuned/model.safetensors
 .venv-tts/
+data/owner_train/
+data/owner_test/
+assets/vishal_clone_scam*.wav
+assets/vishal_clone_benign.wav
+hard_samples/vishal_*
