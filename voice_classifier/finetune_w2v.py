@@ -22,7 +22,7 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import AutoModelForAudioClassification
 
-from .model import pick_device, LABELS
+from .model import pick_device, device_info, LABELS
 from .splits import build_disjoint_splits, clone_splits, itw_splits
 from .train import VoiceDataset
 
@@ -58,9 +58,10 @@ def main():
     args = ap.parse_args()
 
     device = pick_device()
-    gpu_name = torch.cuda.get_device_name(0) if device.type == "cuda" else "CPU"
-    is_rocm = torch.version.hip is not None
-    print(f"device={device} ({gpu_name})  rocm={is_rocm}")
+    info = device_info()
+    gpu_name, is_rocm = info["gpu"], info["rocm"]
+    print(f"device={device} ({gpu_name})  rocm={is_rocm}  "
+          f"arch={info.get('gcn_arch', '')}  vram={info.get('vram_gb')}GB")
 
     tr_f, tr_y, va_f, va_y = build_disjoint_splits(Path(args.data))
     print(f"train={len(tr_f)}  val={len(va_f)} (voice-disjoint)")
@@ -151,9 +152,7 @@ def main():
 
     (out_dir / "finetune_log.json").write_text(json.dumps({
         "base_model": BASE_MODEL,
-        "gpu": gpu_name,
-        "rocm": is_rocm,
-        "torch": torch.__version__,
+        **info,
         "split": ("voice-disjoint (5 held-out TTS voices, 15% held-out speakers) "
                   "+ XTTS clone train/val/test by speaker; selection = "
                   "mean(val_acc, clone_val_acc)"),

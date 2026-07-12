@@ -67,3 +67,30 @@ def pick_device() -> torch.device:
     if torch.cuda.is_available():
         return torch.device("cuda")
     return torch.device("cpu")
+
+
+def device_info() -> dict:
+    """Identify the accelerator for the training log (AMD-usage evidence).
+
+    Some ROCm builds return an empty string from get_device_name(), so fall back
+    to the device properties, which carry the gfx arch name.
+    """
+    if not torch.cuda.is_available():
+        return {"gpu": "CPU", "rocm": False, "torch": torch.__version__}
+
+    name = (torch.cuda.get_device_name(0) or "").strip()
+    props = torch.cuda.get_device_properties(0)
+    arch = getattr(props, "gcnArchName", "") or ""
+    if not name:
+        name = (getattr(props, "name", "") or "").strip()
+    if not name and arch:
+        name = f"AMD GPU ({arch})"
+
+    return {
+        "gpu": name or "unknown",
+        "gcn_arch": arch,
+        "vram_gb": round(props.total_memory / 1e9, 1),
+        "rocm": torch.version.hip is not None,
+        "hip": torch.version.hip,
+        "torch": torch.__version__,
+    }

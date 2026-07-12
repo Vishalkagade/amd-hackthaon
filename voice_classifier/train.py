@@ -20,7 +20,7 @@ import torchaudio
 from torch.utils.data import Dataset, DataLoader
 
 from .model import (
-    VoiceCNN, make_melspec, pick_device,
+    VoiceCNN, make_melspec, pick_device, device_info,
     SAMPLE_RATE, CLIP_SAMPLES, LABELS,
 )
 
@@ -128,8 +128,10 @@ def main():
     args = ap.parse_args()
 
     device = pick_device()
-    gpu_name = torch.cuda.get_device_name(0) if device.type == "cuda" else "CPU"
-    print(f"device={device} ({gpu_name})")
+    info = device_info()
+    gpu_name = info["gpu"]
+    print(f"device={device} ({gpu_name})  rocm={info['rocm']}  "
+          f"arch={info.get('gcn_arch', '')}")
 
     tr, va = build_splits(Path(args.data))
     print(f"train={len(tr)}  val={len(va)}")
@@ -216,8 +218,7 @@ def main():
             }, out_dir / "voice_cnn_best.pt")
 
     (out_dir / "training_log.json").write_text(json.dumps({
-        "gpu": gpu_name,
-        "torch": torch.__version__,
+        **info,
         "best_val_acc": best_acc,
         "history": history,
     }, indent=2))
