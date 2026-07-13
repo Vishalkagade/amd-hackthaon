@@ -3,6 +3,14 @@
 **Real-time phone-scam and AI-voice-clone detection.**
 AMD Developer Hackathon (ACT II) — Track 3: Unicorn (Open Innovation).
 
+## 🎬 Demo video
+
+[![Scam Call Shield demo — click to watch](assets/demo_poster.png)](assets/demo_video_shield_scam.mp4)
+
+*Click the image to watch the 4½-minute demo: a scam call is transcribed live,
+Gemma flags the red flags in real time, and the AMD-trained detector calls out
+the AI-cloned voice.*
+
 Voice can no longer be trusted as identity: 3 seconds of audio is enough to clone
 anyone's voice, and AI voice scams surged over 1,200% in 2025 (FBI: $3B+ in losses).
 The human ear has lost this arms race — detection has to move to the device, onto
